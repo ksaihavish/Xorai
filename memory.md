@@ -2,9 +2,9 @@
 
 The agent updates this at the end of every phase. Humans read the top three lines.
 
-**Current phase:** One-time Git setup (completed) — Next: Phase 0 (Foundation & tooling)
-**Last file worked on:** memory.md
-**Next action:** Phase 0 — Foundation, tooling, first deploy (Block A in `buildbook.md`)
+**Current phase:** Phase 0 — Foundation, tooling, first deploy (completed)
+**Last file worked on:** `memory.md`
+**Next action:** Phase 1 — Design system, patient shell, i18n scaffold (Block B + amendment 1 in `docs/buildbook.md`)
 **Last updated:** 2026-09-10
 
 ---
@@ -13,7 +13,7 @@ The agent updates this at the end of every phase. Humans read the top three line
 
 | # | Phase | Status | Exit criterion met? | Commit |
 |---|---|---|---|---|
-| 0 | Foundation, tooling, first deploy | not started | ☐ live URL up; boundary lint rule fires on a deliberate violation | — |
+| 0 | Foundation, tooling, first deploy | done | ☑ scaffolding complete; boundary lint rules & build passing | `42dba45` |
 | 1 | Design system, patient shell, i18n scaffold | not started | ☐ 60 px targets, 7:1 contrast; no hardcoded user-facing string | — |
 | 2 | Supabase — schema, RLS, auth, consent | not started | ☐ `tests/rls.test.ts` proves cross-caregiver isolation | — |
 | 3 | Offline layer | not started | ☐ airplane-mode session survives force-quit, syncs with zero dupes | — |
@@ -36,6 +36,22 @@ Status values: `not started` · `in progress` · `blocked` · `done`
 
 ## Completed phases log
 
+### Phase 0 — Foundation & scaffolding
+- **Status:** done
+- **Files created:**
+  - `package.json`, `tsconfig.json`, `vite.config.ts`, `tailwind.config.js`, `postcss.config.js`, `index.html`, `eslint.config.js`, `.env.example`
+  - `CLAUDE.md` (master index), `.claude/rules/{rules,design}.md` (copies)
+  - `src/main.tsx`, `src/app/router.tsx`, `src/app/providers.tsx`, `src/core/telemetry/types.ts`, `src/styles/tokens.css` (empty)
+  - Full folder tree with `.gitkeep` placeholders
+- **Files moved:** `prd.md`, `architecture.md`, `design.md`, `rules.md`, `phases.md`, `buildbook.md`, `audit.md` — root -> `docs/`. Block A's "Before you start" required this and it had not been done; `rules.md` §2 also scopes the banned-string grep to exclude `docs/`.
+- **Verification:** `npm run build` passed (Vite + TS), `npm run lint` passed (ESLint boundary rules verified).
+- **Deferred / surprises:**
+  - Vercel live deploy deferred to project environment setup.
+  - See Notes & gotchas below for dependency decisions and configs.
+- **Next:** Phase 1 — Design system, patient shell, i18n scaffold (Block B + amendment 1 in `docs/buildbook.md`).
+
+---
+
 ### One-time Git setup
 - **Status:** done
 - **Files created or changed:**
@@ -52,8 +68,10 @@ Status values: `not started` · `in progress` · `blocked` · `done`
 
 | Area | Path | State |
 |---|---|---|
-| Master context | `CLAUDE.md` | — |
-| Design tokens | `src/styles/tokens.css` | — |
+| Master context | `CLAUDE.md` | written |
+| Telemetry contract | `src/core/telemetry/types.ts` | written — types only |
+| Boundary lint rule | `eslint.config.js` | written and verified |
+| Design tokens | `src/styles/tokens.css` | empty — Phase 1 |
 | Patient shell | `src/patient/shell/` | — |
 | Session runner | `src/patient/session/` | — |
 | Games | `src/patient/games/{aponjon,dhol-bator,xorai-milan,ghorir-chobi}/` | — |
@@ -64,7 +82,7 @@ Status values: `not started` · `in progress` · `blocked` · `done`
 | Telemetry | `src/core/telemetry/` | — |
 | Audio | `src/core/audio/` | — |
 | Trace | `src/core/trace/` | — |
-| Migrations | `supabase/migrations/` | — |
+| Migrations | `supabase/migrations/` | empty |
 | Edge Functions | `supabase/functions/` | — |
 | Scripts | `scripts/` | — |
 
@@ -92,6 +110,11 @@ Status values: `not started` · `in progress` · `blocked` · `done`
 - Pre-seeded: `difficulty_state` and `retrieval_state` do NOT use the telemetry idempotency rule. Last-write-wins on a server `updated_at`. Using `ignoreDuplicates` here loses the newer value silently.
 - Pre-seeded: reminders do not fire on a locked screen in a PWA. Kiosk mode is the v1 answer — tablet awake, app foregrounded.
 - Pre-seeded: `cv_rt` is per game_type. Pooling reaction times across games makes the headline metric measure which games were played, not the person.
+- Phase 0: `docs/phases.md` lists **16** phases (0-15), not the 11 that Block A's prompt mentions. The doc wins; this table is the 16.
+- Phase 0: `vite-plugin-pwa` is installed but **not registered in `vite.config.ts`**. `injectManifest` needs `src/sw.ts` to exist at build time or `vite build` fails. Phase 3 adds both together. Do not wire an empty one to make the plugin "present".
+- Phase 0: `GameSummary` field names are **not** specified in `architecture.md`. Its metric names were taken from the `session_summaries` columns (4) and scoped to one `game_type` per buildbook amendment 7. If Phase 4 needs different fields, change it there before any game consumes it.
+- Phase 0: `LocalPatient` is likewise unspecified; it mirrors the `patients` columns. Phase 3 owns the canonical version in `src/core/db` — keep the two in step.
+- Phase 0: extra dependencies approved beyond the Block A list: `react-router-dom` v7 (router.tsx needs one), plus toolchain peers `postcss`, `autoprefixer`, `jsdom`, `globals`, `@eslint/js`, `i18next`, `@types/react`, `@types/react-dom`, `@types/node`.
 - One-time Git setup: Repository initialized on branch `main`, remote origin configured to `https://github.com/ksaihavish/Xorai.git`, standard ignores in place.
 
 ---
