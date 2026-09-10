@@ -7,11 +7,15 @@ import { emitSession } from '@/core/telemetry/emit'
 import type {
   GameSummary,
   GameType,
+  LocalFamilyMember,
   LocalPatient,
   SessionClock,
   SessionRecord,
   Severity,
 } from '@/core/telemetry/types'
+import { aponjonGame } from '@/patient/games/aponjon/AponjonGame'
+import { DEMO_FAMILY } from '@/patient/games/aponjon/demoFamily'
+import { dholBatorGame } from '@/patient/games/dhol-bator/DholBatorGame'
 import { orientationGame } from '@/patient/orientation/OrientationGame'
 import { CloseScreen } from '@/patient/session/CloseScreen'
 import { GameHost, createSpeakStub, type Game } from '@/patient/session/GameHost'
@@ -44,8 +48,8 @@ const SEVERITY_RANK: Record<Severity, number> = { mild: 0, moderate: 1, severe: 
  * for a finished game later should not touch this file.
  */
 const GAME_REGISTRY: Game[] = [
-  makeStub('dhol_bator', ['attention', 'memory', 'perceptual_motor'], 'severe'),
-  makeStub('aponjon', ['memory', 'language'], 'severe'),
+  dholBatorGame,
+  aponjonGame,
   makeStub('ghorir_chobi', ['perceptual_motor', 'executive'], 'moderate'),
   makeStub('xorai_milan', ['attention', 'memory', 'perceptual_motor'], 'severe'),
 ]
@@ -109,6 +113,9 @@ export function SessionRunner({
   const store = useSessionStore()
   const [clock, setClock] = useState<SessionClock | null>(null)
   const [games, setGames] = useState<Game[]>([])
+  // Phase 6 caches the real family in Dexie local_profile at onboarding. Until
+  // then Aponjon runs against the marked fixture rather than not running.
+  const [family] = useState<LocalFamilyMember[]>(DEMO_FAMILY)
   const sessionRef = useRef<SessionRecord | null>(null)
   const summariesRef = useRef<GameSummary[]>([])
   const speak = useMemo(() => createSpeakStub(), [])
@@ -256,6 +263,7 @@ export function SessionRunner({
         <GameHost
           game={orientationGame}
           patient={patient}
+          family={family}
           clock={clock}
           level={1}
           speak={speak}
@@ -270,6 +278,7 @@ export function SessionRunner({
         <GameHost
           game={activeGame}
           patient={patient}
+          family={family}
           clock={clock}
           // Phase 10 reads this from difficulty_state. Until the staircase
           // exists, every game starts at its own level 1.

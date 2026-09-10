@@ -195,16 +195,58 @@ export type EmittedAttempt = Omit<
   'client_event_id' | 'session_id' | 'patient_id'
 >
 
+/** Same three identifiers filled in by GameHost. Dhol Bator only. */
+export type EmittedRhythmTrial = Omit<
+  RhythmTrialEvent,
+  'client_event_id' | 'session_id' | 'patient_id'
+>
+
+/** Same again. Ghorir Chobi only, from Phase 9. */
+export type EmittedStroke = Omit<StrokeEvent, 'client_event_id' | 'session_id' | 'patient_id'>
+
+/**
+ * A family member as the patient path sees them: cached whole in Dexie
+ * `local_profile`, with the photograph and voice note already resolved to
+ * locally-usable URLs.
+ *
+ * `photo_url` rather than `photo_path` on purpose. The stored column is a
+ * Storage path needing a signed URL, and signing needs the network — which the
+ * patient path does not have and must not wait for. Resolution happens when the
+ * profile is cached (Phase 6), not when a face is shown.
+ */
+export interface LocalFamilyMember {
+  id: string
+  display_name: string
+  /** i18n key into the kinship table. The voice speaks THIS, not "aunt". */
+  kinship_term_key: string | null
+  relationship_en: string | null
+  photo_url: string | null
+  voice_note_url: string | null
+  phone: string | null
+  is_emergency: boolean
+  sort_order: number | null
+}
+
 /**
  * The only surface a game may touch. A game that reaches directly into Dexie or
  * Supabase is wrong (rules.md 2 Boundaries).
  */
 export interface GameContext {
   patient: LocalPatient
+  /** Empty until Phase 6 caches the real profile. Aponjon requires at least 2. */
+  family: LocalFamilyMember[]
   /** From `difficulty_state`. */
   level: number
   /** Writes to Dexie synchronously. The network is never in this path. */
   emit: (e: EmittedAttempt) => void
+  /**
+   * Dhol Bator only. Asynchronies and IOIs stay on the AUDIO clock and are NOT
+   * converted here — converting them onto the performance timeline reintroduces
+   * exactly the drift the audio clock exists to avoid (architecture.md 6).
+   */
+  emitRhythm: (e: EmittedRhythmTrial) => void
+  /** Ghorir Chobi only, from Phase 9. */
+  emitStroke: (e: EmittedStroke) => void
   /** Plays pre-generated audio for an i18n key. Never a runtime TTS call. */
   speak: (key: string) => Promise<void>
   onComplete: (summary: GameSummary) => void

@@ -289,5 +289,36 @@
     "close": {
       "farewell": "Thank you, {{name}}."
     }
+  },
+  "aponjon": {
+    "whoIsThis": "Who is this?",
+    "study": "Here is someone you know.",
+    "initialCue": "Their name begins with {{letter}}.",
+    "photoAlt": "A photograph of {{name}}",
+    "noFamily": "Just a moment."
+  },
+  "kin": {
+    "spouse": "Husband or wife",
+    "elder_brother": "Elder brother",
+    "younger_brother": "Younger brother",
+    "elder_sister": "Elder sister",
+    "younger_sister": "Younger sister",
+    "father": "Father",
+    "mother": "Mother",
+    "father_elder_brother": "Father",
+    "father_younger_brother": "Father",
+    "father_sister": "Father",
+    "mother_brother": "Mother",
+    "mother_elder_sister": "Mother",
+    "mother_younger_sister": "Mother",
+    "father_father": "Father",
+    "father_mother": "Father",
+    "mother_father": "Mother",
+    "mother_mother": "Mother",
+    "son": "Son",
+    "daughter": "Daughter",
+    "grandson": "Grandson",
+    "granddaughter": "Granddaughter",
+    "other": "Family"
   }
 }

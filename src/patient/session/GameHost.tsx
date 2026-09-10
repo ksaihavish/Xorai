@@ -1,10 +1,11 @@
 import { useMemo, type ReactNode } from 'react'
-import { emitAttempt, type AttemptInput } from '@/core/telemetry/emit'
+import { emitAttempt, emitRhythmTrial, emitStroke, type AttemptInput } from '@/core/telemetry/emit'
 import type {
   Domain,
   GameContext,
   GameSummary,
   GameType,
+  LocalFamilyMember,
   LocalPatient,
   SessionClock,
   Severity,
@@ -45,6 +46,7 @@ export type Game = {
 export function GameHost({
   game,
   patient,
+  family,
   clock,
   level,
   speak,
@@ -53,6 +55,7 @@ export function GameHost({
 }: {
   game: Game
   patient: LocalPatient
+  family: LocalFamilyMember[]
   clock: SessionClock
   level: number
   speak: (key: string) => Promise<void>
@@ -62,6 +65,7 @@ export function GameHost({
   const ctx = useMemo<GameContext>(
     () => ({
       patient,
+      family,
       level,
       speak,
       clock,
@@ -78,8 +82,16 @@ export function GameHost({
         }
         emitAttempt(clock, input)
       },
+
+      emitRhythm: (event) => {
+        emitRhythmTrial(clock, { ...event, session_id: sessionId, patient_id: patient.id })
+      },
+
+      emitStroke: (event) => {
+        emitStroke(clock, { ...event, session_id: sessionId, patient_id: patient.id })
+      },
     }),
-    [patient, level, speak, clock, onComplete, sessionId],
+    [patient, family, level, speak, clock, onComplete, sessionId],
   )
 
   return <game.Component ctx={ctx} />

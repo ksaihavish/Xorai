@@ -2,7 +2,7 @@
 
 **Read this file, not the repo.** It exists so no task starts with a filesystem scan. If the tree or a core contract changes, update this file in the same commit (`docs/rules.md` §1.5).
 
-**Current phase:** Phase 4 complete — Next: Phase 5 (Voice & language pipeline).
+**Current phase:** Block H (Phases 7 & 8: Dhol Bator & Aponjon) complete — Next: Phase 5 (Voice & language pipeline) or Phase 9 (Ghorir Chobi).
 
 ---
 
@@ -50,7 +50,7 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 | `docs/` | `prd.md`, `architecture.md`, `design.md`, `rules.md`, `phases.md`, `buildbook.md`, `audit.md`. Source of truth; excluded from the banned-string grep |
 | `i18n/` | `en.json` — every user-facing string in both modes. Phase 5 adds the other seven languages. **In** the banned-string grep |
 | `public/audio/` | Pre-generated speech, one folder per language, precached |
-| `public/audio/drums/` | Dhol / gogona / pepa samples for Dhol Bator, pre-decoded at app start |
+| `public/audio/drums/` | **Synthesized placeholders** + `SOURCE.md`. Owner 3 replaces them |
 | `public/assets/cultural/` | The Xorai Milan deck — square WebP, ≤120 KB each |
 | `public/fonts/` | Self-hosted woff2 subsets + `fonts.css`. Noto Sans (latin, latin-ext, devanagari), Noto Sans Bengali (bengali), Inter (latin, latin-ext). Weights 400/600 only, **no italic face**. Meetei Mayek lands in Phase 9 |
 | `supabase/migrations/` | `0001_init.sql` (every table, indexes, `client_event_id` UNIQUE), `0002_rls.sql` (RLS on every table, storage buckets, the write bans). Forward-only; never edited after being applied |
@@ -64,7 +64,8 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 | `src/patient/` | **Patient mode.** `design.md` is law here. May not import from `src/caregiver/**`, or from `lucide-react` |
 | `src/patient/shell/` | `PatientShell` (viewport, landscape gate, kiosk locks), `WovenSessionBorder` (the frame **is** the progress indicator), `weave.ts` (gamosa CSS), `ExitGuard` (3 s hold, no PIN), `useKioskLocks` |
 | `src/patient/session/` | `SessionRunner` (phases + game selection + the 15-min cap), `GameHost` (builds `GameContext`), `store.ts` (zustand), `CloseScreen` (the bamboo grove) |
-| `src/patient/games/` | One folder per game: `aponjon`, `dhol-bator`, `xorai-milan`, `ghorir-chobi` |
+| `src/patient/games/dhol-bator/` | `DholBatorGame`, `DholHead`, `patterns.ts` |
+| `src/patient/games/aponjon/` | `AponjonGame`, `kinship.ts` (the NER kinship structure), `demoFamily.ts` (fixture) |
 | `src/patient/orientation/` | `OrientationGame` (four questions, errorless), `questions.ts` (pure builder), `SeasonMark` (four line drawings) |
 | `src/patient/assist/` | Reminders, contact cards, SOS, music, the always-available orientation card |
 | `src/caregiver/` | **Caregiver mode.** Different design system. May not import from `src/patient/**` |
@@ -76,9 +77,9 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 | `src/core/db/` | `dexie.ts` (v1 schema, 10 stores), `schemas.ts` (zod, parsed on every read out), `outbox.ts` (the four `queue*` writers), `sync-engine.ts` |
 | `src/core/supabase/` | `client.ts` — **the only client in the app**. `types.ts` is generated and still missing; see below |
 | `src/core/telemetry/` | `types.ts` (the contract), `clock.ts` (**the one `Date.now()`**), `emit.ts` |
-| `src/core/audio/` | `context.ts`, `scheduler.ts`, `speak.ts` |
+| `src/core/audio/` | `context.ts` (**the one AudioContext**, decoded sample cache), `scheduler.ts` (lookahead). `speak.ts` arrives in Phase 5 |
 | `src/core/i18n/` | `index.ts` (i18next init), `languages.ts` (the eight codes + endonyms) |
-| `src/core/difficulty/` | `staircase.ts`, `spaced-retrieval.ts` |
+| `src/core/difficulty/` | `spaced-retrieval.ts`. `staircase.ts` arrives in Phase 10 |
 | `src/ui/` | `cn.ts`, `PatientButton`, `PatientCard`, `Prompt`, `ReplayAudioButton`. Patient primitives written to design.md 5, **not** shadcn defaults. shadcn copies land here too when a phase needs one |
 | `src/styles/tokens.css` | The three `@tailwind` directives, then every token from design.md 2 plus the `[data-mode="caregiver"]` overrides |
 | `tests/` | `rls.test.ts`, `sync.test.ts`, `clock.test.ts` — none of these may be deleted or skipped |
@@ -106,6 +107,10 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 `src/core/telemetry/clock.ts` — **the only `Date.now()` in the telemetry path**, and it produces `sessions.started_at` and nothing else. `tests/clock.test.ts` greps `src/core/telemetry/**` and `src/patient/**` for any other one, prints its allowlist on every run, and asserts the allowlisted file still contains the call it is listed for. A negative control confirmed the grep catches a planted violation. Everything else is `performance.now()` offsets from one origin.
 
 `clock.fromAudio()` **throws** without an AudioContext rather than returning 0 or NaN. Dhol Bator (Phase 7) must pass one to `createSessionClock()`. A silent wrong answer here makes both the attempt offsets and the asynchronies wrong while both still look plausible.
+
+**Rhythm timing lives entirely on the audio clock.** Beats are scheduled on `audioCtx.currentTime`, taps are read from `audioCtx.currentTime` in `pointerdown`, and neither ever touches `performance.now()`. Scheduling precision was measured through an `OfflineAudioContext` render: five notes at 600/300/300/600 ms came back at exactly 600/300/300/600, max onset error **0.271 ms** and constant, so it cancels in the differences.
+
+**A suspended AudioContext is the trap.** Its `currentTime` does not advance, so (a) `await ctx.resume()` can stay pending forever, (b) playback never reports finishing, and (c) every tap reads the same frozen value and produces tidy, entirely fictional asynchronies. All three are guarded: `resumeWithTimeout`, a playback watchdog, and a `clockRunning` check that writes EMPTY timing arrays and `completed: false` rather than fabrications.
 
 `src/core/telemetry/emit.ts` and `src/core/db/outbox.ts` — **every emit and queue function returns `void`, never a Promise.** That is the enforcement mechanism for "the network is never in the interaction path": a function returning nothing cannot be awaited in a `pointerdown` handler.
 

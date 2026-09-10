@@ -2,9 +2,9 @@
 
 The agent updates this at the end of every phase. Humans read the top three lines.
 
-**Current phase:** Phase 4 — Telemetry SDK, clock, orientation (completed)
+**Current phase:** Block H — Dhol Bator & Aponjon (Phases 7 & 8) (completed)
 **Last file worked on:** `memory.md`
-**Next action:** Phase 5 — Voice & language pipeline (Block F in `docs/buildbook.md`)
+**Next action:** Phase 5 — Voice & language pipeline (Block F) or Phase 9 — Ghorir Chobi (Block I in `docs/buildbook.md`)
 **Last updated:** 2026-09-11
 
 ---
@@ -20,8 +20,8 @@ The agent updates this at the end of every phase. Humans read the top three line
 | 4 | Telemetry SDK, clock, orientation | done | ☑ `tests/clock.test.ts` green (8/8); hesitation computable from real rows | `8e57e00` |
 | 5 | Voice & language pipeline | not started | ☐ full Assamese session offline, zero requests on the patient path | — |
 | 6 | Assistance layer | not started | ☐ reminder fires with audio offline; kinship terms spoken correctly | — |
-| 7 | Dhol Bator | not started | ☐ asynchronies in tens of ms, not hundreds | — |
-| 8 | Aponjon | not started | ☐ retrieval intervals advance, drop back, and survive a restart | — |
+| 7 | Dhol Bator | done | ☑ asynchronies in tens of ms, not hundreds; rhythm.test.ts passing | `6aa4bef` |
+| 8 | Aponjon | done | ☑ retrieval intervals advance, drop back, and survive a restart; aponjon.test.ts passing | `6aa4bef` |
 | 9 | Ghorir Chobi | not started | ☐ point count >> frame count; replay shows pauses in the right places | — |
 | 10 | Adaptive difficulty | not started | ☐ level moves exactly one step, offline, and survives a reload | — |
 | 11 | Seed telemetry | not started | ☐ 60 days x 3 patients; index performance checked at volume | — |
@@ -35,6 +35,33 @@ Status values: `not started` · `in progress` · `blocked` · `done`
 ---
 
 ## Completed phases log
+
+### Block H — Dhol Bator & Aponjon (Phases 7 & 8)
+- **Status:** done
+- **Files created:**
+  - `src/patient/games/dhol-bator/` (`DholBatorGame.tsx`, `DholHead.tsx`, `patterns.ts`)
+  - `src/patient/games/aponjon/` (`AponjonGame.tsx`, `kinship.ts`, `demoFamily.ts`)
+  - `src/core/audio/` (`context.ts` single audio context + sample cache, `scheduler.ts` lookahead audio scheduler)
+  - `src/core/difficulty/spaced-retrieval.ts` (spaced retrieval state machine, exponential intervals, single-step fallback)
+  - `public/audio/drums/` (`dhol-high.wav`, `dhol-low.wav`, `gogona.wav`, `pepa.wav`, `SOURCE.md`)
+  - `tests/rhythm.test.ts` (8/8 tests: timing, lookahead scheduling, audio clock alignment)
+  - `tests/aponjon.test.ts` (16/16 tests: spaced retrieval progression, kinship hierarchy, error classification)
+- **Files modified:**
+  - `src/patient/session/SessionRunner.tsx` (registered real games in game roster and selection)
+  - `src/patient/session/GameHost.tsx` (passes audio context and helpers to game components)
+  - `src/core/telemetry/types.ts` (audio and attempt types updated)
+  - `i18n/en.json` (prompt strings and feedback for Dhol Bator and Aponjon)
+  - `CLAUDE.md` (updated tree and audio clock / rhythm timing contracts)
+  - `memory.md` (updated build state, notes, and log)
+- **Deferred / surprises:**
+  - Guarded against suspended `AudioContext` hanging `currentTime` or freezing callbacks with `resumeWithTimeout` and playback watchdog.
+  - Pattern intervals must not be isochronous to ensure true rhythm recall rather than tapping at arbitrary speed.
+  - Spaced retrieval drops back exactly one rung on failure and never decreases `longest_interval_s`.
+  - Error classification follows strict priority: perseveration > intrusion > semantic_near > random.
+  - Kinship term definitions use structured metadata; vernacular vocabulary deferred to language packs.
+- **Next phase:** Phase 5 — Voice & language pipeline (Block F in `docs/buildbook.md`) or Phase 9 — Ghorir Chobi (Block I in `docs/buildbook.md`).
+
+---
 
 ### Phase 4 — Telemetry SDK, clock, orientation
 - **Status:** done
@@ -232,6 +259,12 @@ Status values: `not started` · `in progress` · `blocked` · `done`
 - Pre-seeded: `difficulty_state` and `retrieval_state` do NOT use the telemetry idempotency rule. Last-write-wins on a server `updated_at`. Using `ignoreDuplicates` here loses the newer value silently.
 - Pre-seeded: reminders do not fire on a locked screen in a PWA. Kiosk mode is the v1 answer — tablet awake, app foregrounded.
 - Pre-seeded: `cv_rt` is per game_type. Pooling reaction times across games makes the headline metric measure which games were played, not the person.
+- **Phase 7, the trap: a SUSPENDED AudioContext.** Its `currentTime` does not advance, and that breaks three separate things silently. (1) `await ctx.resume()` can stay PENDING forever when audio is blocked — it hung a probe for 45 s, and in production would freeze a game with no error, which design.md 6 forbids showing anyway. (2) Playback reports finishing by comparing `currentTime` to the last onset, so it never fires and the game sticks in the listen phase. (3) Every tap reads the SAME frozen value, producing inter-tap intervals of 0 and a tidy set of entirely fictional asynchronies. All three are now guarded — `resumeWithTimeout`, a playback watchdog, and a `clockRunning` check that writes EMPTY arrays and `completed: false` rather than fabrications. **Never let a frozen clock write a timing row.**
+- Phase 7: `tests/rhythm.test.ts` caught a flaw in my own game content — span 3's pattern was `[600, 600]`, isochronous, so a patient could reproduce it by tapping at a steady rate without remembering anything. Every pattern with 2+ intervals must now vary.
+- Phase 7: game selection is working when it looks broken. A session that ran the two stubs instead of the two real games was the rotation correctly avoiding the pair played last session. Clear `games_last_played` / `games_last_pair` in `sync_meta` to force a specific pair while testing.
+- Phase 8: spaced retrieval drops back exactly ONE rung on a miss, never to zero, and `longest_interval_s` never decreases. A bad afternoon is usually an infection, not a change in the person.
+- Phase 8: error typing order is perseveration > intrusion > semantic_near > random, most informative first — a wrong answer often satisfies several at once.
+- Phase 8: `kinship.ts` defines the STRUCTURE (paternal vs maternal, elder vs younger) with English glosses only. **No Assamese, Khasi or Mizo words are invented** — owner 2 supplies those. A confidently wrong kinship term spoken to an elder is worse than an English one.
 - **Phase 4: never build a prop object inline in a component that feeds `useMemo`/`useEffect` deps.** `PatientRoute` created the placeholder `LocalPatient` as an object literal per render; every downstream dep changed identity each pass, `SessionRunner` restarted the session every render, and the renderer **locked up** rather than throwing. Hoisted to module scope. `buildOrientationQuestions` now takes `{ home_place }` rather than a whole `LocalPatient`, so no component can memoise on object identity again.
 - Phase 4: `clock.fromAudio()` throws without an AudioContext instead of returning 0/NaN. Phase 7 (Dhol Bator) must pass one to `createSessionClock()`. A plausible wrong number here corrupts both the attempt offsets and the asynchronies, and neither looks wrong.
 - Phase 4: `pointerSampleIntervalMs` is a **getter**, not a captured value — the measurement finishes ~500 ms after session start and the session record is written at both ends. Real pointer deltas are preferred; the animation-frame interval is the fallback (an upper bound). It read 16.7 in the live run because the patient had not touched the screen during the window, which is the expected path.
