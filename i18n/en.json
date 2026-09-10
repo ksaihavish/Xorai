@@ -257,5 +257,37 @@
       "setupNeeded": "Connect a database to finish setting up",
       "setupNeededBody": "Onboarding, sign-in and syncing stay unavailable until VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in .env.local. The patient screens work without it."
     }
+  },
+  "orientation": {
+    "prompts": {
+      "day": "What day is it today?",
+      "date": "What is the date today?",
+      "season": "Which season is it now?",
+      "place": "Where are you right now?"
+    },
+    "answers": {
+      "day": "Today is the day shown here.",
+      "date": "Today is the date shown here.",
+      "season": "This is the season we are in now.",
+      "place": "You are at home."
+    },
+    "seasons": {
+      "bihu": "Bihu",
+      "monsoon": "The rains",
+      "harvest": "Harvest",
+      "winter": "Winter"
+    },
+    "somewhereElse": "Somewhere else"
+  },
+  "session": {
+    "music": {
+      "cue": "Here is a little music."
+    },
+    "stub": {
+      "unavailable": "Just a moment."
+    },
+    "close": {
+      "farewell": "Thank you, {{name}}."
+    }
   }
 }

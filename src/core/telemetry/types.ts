@@ -177,6 +177,25 @@ export interface SessionClock {
 }
 
 /**
+ * What a game hands to `emit`.
+ *
+ * architecture.md 7 writes the context method as `(e: AttemptEvent) => void`,
+ * but a game holds none of the three identifiers that type requires: the
+ * session id belongs to the session runner, the patient id to the profile, and
+ * `client_event_id` is minted by the outbox writer at the moment of the write.
+ * Asking a game for them would mean either widening GameContext until a game can
+ * reach the session, or letting each game invent its own idempotency key — and
+ * the second one silently breaks offline replay.
+ *
+ * GameHost fills all three in. This type is the honest signature of what is
+ * actually passed.
+ */
+export type EmittedAttempt = Omit<
+  AttemptEvent,
+  'client_event_id' | 'session_id' | 'patient_id'
+>
+
+/**
  * The only surface a game may touch. A game that reaches directly into Dexie or
  * Supabase is wrong (rules.md 2 Boundaries).
  */
@@ -185,7 +204,7 @@ export interface GameContext {
   /** From `difficulty_state`. */
   level: number
   /** Writes to Dexie synchronously. The network is never in this path. */
-  emit: (e: AttemptEvent) => void
+  emit: (e: EmittedAttempt) => void
   /** Plays pre-generated audio for an i18n key. Never a runtime TTS call. */
   speak: (key: string) => Promise<void>
   onComplete: (summary: GameSummary) => void

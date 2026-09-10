@@ -2,7 +2,7 @@
 
 **Read this file, not the repo.** It exists so no task starts with a filesystem scan. If the tree or a core contract changes, update this file in the same commit (`docs/rules.md` §1.5).
 
-**Current phase:** Phase 3 complete — Next: Phase 4 (Telemetry SDK, clock, orientation).
+**Current phase:** Phase 4 complete — Next: Phase 5 (Voice & language pipeline).
 
 ---
 
@@ -63,9 +63,9 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 | `src/app/providers.tsx` | `QueryClientProvider` only, for now |
 | `src/patient/` | **Patient mode.** `design.md` is law here. May not import from `src/caregiver/**`, or from `lucide-react` |
 | `src/patient/shell/` | `PatientShell` (viewport, landscape gate, kiosk locks), `WovenSessionBorder` (the frame **is** the progress indicator), `weave.ts` (gamosa CSS), `ExitGuard` (3 s hold, no PIN), `useKioskLocks` |
-| `src/patient/session/` | `SessionRunner`, `GameHost`, the close screen |
+| `src/patient/session/` | `SessionRunner` (phases + game selection + the 15-min cap), `GameHost` (builds `GameContext`), `store.ts` (zustand), `CloseScreen` (the bamboo grove) |
 | `src/patient/games/` | One folder per game: `aponjon`, `dhol-bator`, `xorai-milan`, `ghorir-chobi` |
-| `src/patient/orientation/` | The reality-orientation warm-up that runs every session |
+| `src/patient/orientation/` | `OrientationGame` (four questions, errorless), `questions.ts` (pure builder), `SeasonMark` (four line drawings) |
 | `src/patient/assist/` | Reminders, contact cards, SOS, music, the always-available orientation card |
 | `src/caregiver/` | **Caregiver mode.** Different design system. May not import from `src/patient/**` |
 | `src/caregiver/AppShell.tsx` | `CaregiverAppShell`, `CaregiverSection` (hairline bands, not cards), `CaregiverFlagCard` (the only carded element in the mode) |
@@ -75,7 +75,7 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 | `src/caregiver/settings/` | `ConsentSettings` — the DPDP withdraw-and-delete flow |
 | `src/core/db/` | `dexie.ts` (v1 schema, 10 stores), `schemas.ts` (zod, parsed on every read out), `outbox.ts` (the four `queue*` writers), `sync-engine.ts` |
 | `src/core/supabase/` | `client.ts` — **the only client in the app**. `types.ts` is generated and still missing; see below |
-| `src/core/telemetry/` | `types.ts` (the contract, written), plus `emit.ts` and `clock.ts` in Phase 4 |
+| `src/core/telemetry/` | `types.ts` (the contract), `clock.ts` (**the one `Date.now()`**), `emit.ts` |
 | `src/core/audio/` | `context.ts`, `scheduler.ts`, `speak.ts` |
 | `src/core/i18n/` | `index.ts` (i18next init), `languages.ts` (the eight codes + endonyms) |
 | `src/core/difficulty/` | `staircase.ts`, `spaced-retrieval.ts` |
@@ -102,6 +102,14 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 `src/core/db/sync-engine.ts` — flush order `sessions → attempts → strokes → rhythm` is a foreign-key order, not a preference. Batches of 200, `ignoreDuplicates` on `client_event_id` (`id` for sessions) as the entire idempotency story, backoff 1s→5min, prune only confirmed rows older than 7 days. It never throws into the UI.
 
 `src/core/supabase/client.ts` — **never import a client at module scope.** Call `getSupabase()`, and guard optional paths with `isSupabaseConfigured()`. An earlier version threw at module load when `.env.local` was absent, which white-screened the patient route before React mounted and made the offline layer's own test unrunnable. A patient must never see a technical failure (design.md §6), and the offline layer specifically has to work when the backend does not.
+
+`src/core/telemetry/clock.ts` — **the only `Date.now()` in the telemetry path**, and it produces `sessions.started_at` and nothing else. `tests/clock.test.ts` greps `src/core/telemetry/**` and `src/patient/**` for any other one, prints its allowlist on every run, and asserts the allowlisted file still contains the call it is listed for. A negative control confirmed the grep catches a planted violation. Everything else is `performance.now()` offsets from one origin.
+
+`clock.fromAudio()` **throws** without an AudioContext rather than returning 0 or NaN. Dhol Bator (Phase 7) must pass one to `createSessionClock()`. A silent wrong answer here makes both the attempt offsets and the asynchronies wrong while both still look plausible.
+
+`src/core/telemetry/emit.ts` and `src/core/db/outbox.ts` — **every emit and queue function returns `void`, never a Promise.** That is the enforcement mechanism for "the network is never in the interaction path": a function returning nothing cannot be awaited in a `pointerdown` handler.
+
+`src/patient/session/GameHost.tsx` — a game receives `GameContext` and nothing else: no Supabase, no Dexie, no fetch, no `Date`. `GameContext.emit` takes `EmittedAttempt`, which omits `client_event_id`, `session_id` and `patient_id` — GameHost fills all three. Letting a game mint its own `client_event_id` would silently break offline replay.
 
 `src/app/providers.tsx` — **`syncEngine.start()` lives here**, at the root, not in a screen. The outbox fills whether or not anything drains it, and the engine has to keep running while patient mode is on screen, which is where the events come from.
 

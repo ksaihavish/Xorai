@@ -6,6 +6,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import '@/core/i18n'
 import { CaregiverAppShell, CaregiverFlagCard, CaregiverSection } from '@/caregiver/AppShell'
 import { CaregiverHome } from '@/caregiver/dashboard/CaregiverHome'
+import type { LocalPatient } from '@/core/telemetry/types'
 import { AuthProvider } from '@/caregiver/auth/AuthProvider'
 import { RequireAuth } from '@/caregiver/auth/RequireAuth'
 import { NewPassword, ResetPassword } from '@/caregiver/auth/ResetPassword'
@@ -13,6 +14,7 @@ import { SignIn } from '@/caregiver/auth/SignIn'
 import { SignUp } from '@/caregiver/auth/SignUp'
 import { OnboardingFlow } from '@/caregiver/onboarding/OnboardingFlow'
 import { ConsentSettings } from '@/caregiver/settings/ConsentSettings'
+import { SessionRunner } from '@/patient/session/SessionRunner'
 import { PatientShell } from '@/patient/shell/PatientShell'
 import { PatientButton } from '@/ui/PatientButton'
 import { PatientCard } from '@/ui/PatientCard'
@@ -29,12 +31,32 @@ import { ReplayAudioButton } from '@/ui/ReplayAudioButton'
  * frame and the exit hold are exercised on the real route rather than only in
  * the /demo harness.
  */
+/**
+ * Module scope, NOT inside the component.
+ *
+ * A fresh object literal per render gives every downstream `useMemo` and
+ * `useEffect` a new dependency identity, which restarted the session on every
+ * pass — an infinite render loop that locks the renderer rather than throwing.
+ *
+ * Phase 6 replaces this with the real profile from Dexie `local_profile`, cached
+ * at onboarding. Until then the route runs a session against a minimal profile
+ * so the clock, the emit path and the orientation warm-up are exercised on the
+ * real surface rather than only in a test.
+ */
+const PLACEHOLDER_PATIENT: LocalPatient = {
+  id: '00000000-0000-7000-8000-000000000000',
+  display_name: 'Aita',
+  birth_year: 1948,
+  education_level: 'primary',
+  severity: 'mild',
+  language: 'en',
+  photo_path: null,
+  home_place: 'Jorhat',
+  baseline_status: 'collecting',
+}
+
 function PatientRoute() {
-  return (
-    <PatientShell progress={0} onExit={() => window.location.assign('/')}>
-      <div data-route="patient" />
-    </PatientShell>
-  )
+  return <SessionRunner patient={PLACEHOLDER_PATIENT} onExit={() => window.location.assign('/')} />
 }
 
 /**

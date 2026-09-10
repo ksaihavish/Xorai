@@ -2,9 +2,9 @@
 
 The agent updates this at the end of every phase. Humans read the top three lines.
 
-**Current phase:** Phase 3 — Offline layer (completed)
+**Current phase:** Phase 4 — Telemetry SDK, clock, orientation (completed)
 **Last file worked on:** `memory.md`
-**Next action:** Phase 4 — Telemetry SDK, clock, orientation (Block E + amendment 2 in `docs/buildbook.md`)
+**Next action:** Phase 5 — Voice & language pipeline (Block F in `docs/buildbook.md`)
 **Last updated:** 2026-09-11
 
 ---
@@ -17,7 +17,7 @@ The agent updates this at the end of every phase. Humans read the top three line
 | 1 | Design system, patient shell, i18n scaffold | done | ☑ 60 px targets, 7:1 contrast; tokens, primitives, patient & caregiver shells, /demo harness | `10c8791` |
 | 2 | Supabase — schema, RLS, auth, consent | done | ☑ schema & RLS migrations written, auth, onboarding, consent, rls.test.ts | `aa27e5e` |
 | 3 | Offline layer | done | ☑ airplane-mode session survives force-quit, syncs with zero dupes; sync.test.ts passing | `0d7d8dc` |
-| 4 | Telemetry SDK, clock, orientation | not started | ☐ `tests/clock.test.ts` green; hesitation computable from real rows | — |
+| 4 | Telemetry SDK, clock, orientation | done | ☑ `tests/clock.test.ts` green (8/8); hesitation computable from real rows | `8e57e00` |
 | 5 | Voice & language pipeline | not started | ☐ full Assamese session offline, zero requests on the patient path | — |
 | 6 | Assistance layer | not started | ☐ reminder fires with audio offline; kinship terms spoken correctly | — |
 | 7 | Dhol Bator | not started | ☐ asynchronies in tens of ms, not hundreds | — |
@@ -35,6 +35,34 @@ Status values: `not started` · `in progress` · `blocked` · `done`
 ---
 
 ## Completed phases log
+
+### Phase 4 — Telemetry SDK, clock, orientation
+- **Status:** done
+- **Files created:**
+  - `src/core/telemetry/clock.ts` (single wall-clock `Date.now()` at session start, `performance.now()` session clock, pointer delta interval getter, audio clock anchor)
+  - `src/core/telemetry/emit.ts` (void-returning `emitAttempt`, `emitStroke`, `emitRhythmTrial` writing to Dexie outbox)
+  - `src/patient/session/store.ts` (zustand session store with phase machine, 15-minute cap, attempt counters)
+  - `src/patient/session/GameHost.tsx` (sandboxed `GameContext` injector, auto-fills IDs and offsets)
+  - `src/patient/session/SessionRunner.tsx` (session lifecycle orchestrator, orientation warm-up, and close screen transitions)
+  - `src/patient/session/CloseScreen.tsx` (bamboo grove completion screen with warm reassuring copy)
+  - `src/patient/orientation/OrientationGame.tsx` (4 daily orientation questions, errorless UI, 3-attempt guidance ladder)
+  - `src/patient/orientation/questions.ts` (pure question generator: time of day, day of week, season, home place)
+  - `src/patient/orientation/SeasonMark.tsx` (hand-drawn season marks)
+  - `tests/clock.test.ts` (8/8 passing tests enforcing the `Date.now()` ban in telemetry, anchor monotonicity, and pointer delta calculation)
+- **Files modified:**
+  - `src/core/telemetry/types.ts` (added `EmittedAttempt`, `EmittedStroke`, `EmittedRhythmTrial`)
+  - `src/app/router.tsx` (connected `SessionRunner` to `/p` route)
+  - `i18n/en.json` (orientation question strings, options, and completion messages)
+  - `CLAUDE.md` (updated tree and telemetry clock / GameHost contracts)
+  - `memory.md` (updated build state, notes, and log)
+- **Deferred / surprises:**
+  - Prevented component re-mount loops by hoisting placeholder patient object out of `PatientRoute` render body.
+  - `clock.fromAudio()` throws explicitly without an active `AudioContext` to avoid silent timestamp corruption.
+  - `pointerSampleIntervalMs` is a dynamic getter reading real touch deltas or animation frames.
+  - `Date.now()` grep test strips comments to allow descriptive code documentation.
+- **Next phase:** Phase 5 — Voice & language pipeline (Block F in `docs/buildbook.md`).
+
+---
 
 ### Phase 3 — Offline layer
 - **Status:** done
@@ -158,7 +186,9 @@ Status values: `not started` · `in progress` · `blocked` · `done`
 | Caregiver shell | `src/caregiver/AppShell.tsx` | written |
 | Design harness | `/demo` route | written |
 | Patient shell | `src/patient/shell/` | `PatientShell`, `WovenSessionBorder`, `weave.ts`, `ExitGuard`, `useKioskLocks` |
-| Session runner | `src/patient/session/` | — |
+| Session runner | `src/patient/session/` | `SessionRunner`, `GameHost`, `store.ts`, `CloseScreen` |
+| Clock + emit | `src/core/telemetry/` | `clock.ts`, `emit.ts`, `types.ts` |
+| Orientation | `src/patient/orientation/` | `OrientationGame`, `questions.ts`, `SeasonMark` |
 | Games | `src/patient/games/{aponjon,dhol-bator,xorai-milan,ghorir-chobi}/` | — |
 | Assistance | `src/patient/assist/` | — |
 | Onboarding | `src/caregiver/onboarding/` | 6 steps + api + zod schemas |
@@ -202,6 +232,12 @@ Status values: `not started` · `in progress` · `blocked` · `done`
 - Pre-seeded: `difficulty_state` and `retrieval_state` do NOT use the telemetry idempotency rule. Last-write-wins on a server `updated_at`. Using `ignoreDuplicates` here loses the newer value silently.
 - Pre-seeded: reminders do not fire on a locked screen in a PWA. Kiosk mode is the v1 answer — tablet awake, app foregrounded.
 - Pre-seeded: `cv_rt` is per game_type. Pooling reaction times across games makes the headline metric measure which games were played, not the person.
+- **Phase 4: never build a prop object inline in a component that feeds `useMemo`/`useEffect` deps.** `PatientRoute` created the placeholder `LocalPatient` as an object literal per render; every downstream dep changed identity each pass, `SessionRunner` restarted the session every render, and the renderer **locked up** rather than throwing. Hoisted to module scope. `buildOrientationQuestions` now takes `{ home_place }` rather than a whole `LocalPatient`, so no component can memoise on object identity again.
+- Phase 4: `clock.fromAudio()` throws without an AudioContext instead of returning 0/NaN. Phase 7 (Dhol Bator) must pass one to `createSessionClock()`. A plausible wrong number here corrupts both the attempt offsets and the asynchronies, and neither looks wrong.
+- Phase 4: `pointerSampleIntervalMs` is a **getter**, not a captured value — the measurement finishes ~500 ms after session start and the session record is written at both ends. Real pointer deltas are preferred; the animation-frame interval is the fallback (an upper bound). It read 16.7 in the live run because the patient had not touched the screen during the window, which is the expected path.
+- Phase 4: `GameContext.emit` takes `EmittedAttempt` (no `client_event_id`, `session_id`, `patient_id`) — `architecture.md` 7 writes it as `AttemptEvent`, which a game cannot satisfy. Letting a game mint its own `client_event_id` would silently break offline replay.
+- Phase 4: the `Date.now()` ban test strips comments before grepping, so `clock.ts` can explain the rule at length without tripping it. The allowlist prints on every run and a second test asserts the allowlisted file still contains the call — otherwise the allowlist quietly becomes a list of files that used to matter.
+- Phase 4: repeated loads of `/p` leave un-ended session rows behind. That is the intended behaviour of writing the session at START (an interrupted session must still exist for its attempts to reference), not a leak.
 - **Cleanup pass: never import a Supabase client at module scope.** Use `getSupabase()`. A module-level instance that throws on missing config couples every downstream module to `.env.local` existing — it white-screened patient mode before React mounted and broke the offline layer's own test. `isSupabaseConfigured()` guards the optional paths.
 - Cleanup pass: i18next resolves a key with `{count}` to `<key>_one` / `<key>_other`. A bare `<key>` is never read for a counted string. Getting this wrong renders the literal key on screen, and only at the moment the count is non-zero.
 - Cleanup pass: `syncEngine.start()` belongs in `src/app/providers.tsx`. Nothing else calls it, and without it the outbox fills forever while the app looks fine.
