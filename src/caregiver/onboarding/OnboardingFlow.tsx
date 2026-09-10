@@ -22,6 +22,9 @@ export type StepProps = {
 
 const PROGRESS_KEY = 'xorai.onboarding.furthestStep'
 
+/** Sentinel for "nothing left to do". */
+const DONE = -1
+
 /**
  * Where to resume, derived from what is actually in the database rather than
  * from a stored cursor. A caregiver who set this up on a different device, or
@@ -39,7 +42,9 @@ function deriveStepIndex(
   if (!patient) return 0
   if (!patient.severity) return 1
   if (familyCount === 0) return 2
-  if (hasConsent) return ONBOARDING_STEPS.length - 1
+  // Consent granted means onboarding is finished; the caller sends them home
+  // rather than reopening the consent screen they already completed.
+  if (hasConsent) return DONE
 
   let furthest = 3
   try {
@@ -93,6 +98,10 @@ export function OnboardingFlow() {
       }
 
       const index = deriveStepIndex(found, familyCount, hasConsent)
+      if (index === DONE) {
+        navigate('/', { replace: true })
+        return
+      }
       setStepIndex(index)
       setResumed(index > 0)
       setLoading(false)
@@ -102,7 +111,7 @@ export function OnboardingFlow() {
     return () => {
       active = false
     }
-  }, [caregiverId])
+  }, [caregiverId, navigate])
 
   const goTo = useCallback((index: number) => {
     const clamped = Math.min(Math.max(index, 0), ONBOARDING_STEPS.length - 1)

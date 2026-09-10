@@ -15,7 +15,6 @@
     "yes": "Yes",
     "no": "No"
   },
-
   "languages": {
     "en": "English",
     "as": "Assamese",
@@ -26,7 +25,6 @@
     "kha": "Khasi",
     "lus": "Mizo"
   },
-
   "auth": {
     "signIn": {
       "title": "Sign in",
@@ -73,10 +71,10 @@
       "invalidEmail": "That does not look like an email address.",
       "network": "Could not reach the server. Check the connection and try again.",
       "otpInvalid": "That code did not match. Request a new one.",
-      "generic": "That did not go through. Try again."
+      "generic": "That did not go through. Try again.",
+      "notConfigured": "This app is not connected to its database yet. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env.local and restart the dev server."
     }
   },
-
   "onboarding": {
     "title": "Setting up",
     "stepOf": "Step {{current}} of {{total}}",
@@ -89,7 +87,6 @@
       "routine": "Daily routine",
       "consent": "Permission"
     },
-
     "profile": {
       "title": "About the person you care for",
       "displayName": "Their name",
@@ -114,7 +111,6 @@
       "photoChoose": "Choose a photo",
       "photoReplace": "Use a different photo"
     },
-
     "severity": {
       "title": "What has the doctor told you?",
       "intro": "This is something you tell us, not something the app works out. It is never shown to the person you care for, and the app will never change it on its own. It decides which activities appear and how hard they start.",
@@ -131,7 +127,6 @@
         "severe": "Needs help with most things, and recognising people has become hard."
       }
     },
-
     "family": {
       "title": "The people they know",
       "intro": "Add at least one person. Their photos and names are used in the memory activity and on the contact cards, and the app speaks the family word you choose, not the English one.",
@@ -154,7 +149,6 @@
       "micDenied": "The browser did not give permission to use the microphone. You can add a voice note later from settings.",
       "atLeastOne": "Add at least one person before continuing."
     },
-
     "music": {
       "title": "Music they love",
       "intro": "Music from a person's teens and twenties is remembered long after much else has gone. Adding a few songs now is worth more later than almost anything else on these screens.",
@@ -164,7 +158,6 @@
       "trackTitle": "What is this one called?",
       "empty": "Nothing added yet."
     },
-
     "routine": {
       "title": "The shape of their day",
       "intro": "These become spoken reminders on the tablet. Add only the ones that are real; an ignored reminder teaches the person to ignore all of them.",
@@ -181,12 +174,10 @@
       "kioskNote": "Reminders only sound while the tablet is awake and this app is on screen. Keep it plugged in and open on its stand."
     }
   },
-
   "consent": {
     "title": "Permission to use this information",
     "intro": "Indian law asks us to explain what we collect, why, and to get permission from a guardian before we start. Nothing below is switched on until you say so, and you can withdraw any of it later just as easily.",
     "noticeVersionLabel": "Notice version",
-
     "categories": {
       "gameplay": {
         "name": "How they play",
@@ -209,10 +200,8 @@
         "offNote": "If this is off: nothing changes for you. The app works exactly the same."
       }
     },
-
     "toggleOn": "Allowed",
     "toggleOff": "Not allowed",
-
     "guardian": {
       "heading": "About you",
       "relationship": "Your relationship to them",
@@ -220,12 +209,10 @@
       "attestation": "I am this person's lawful guardian, or I am acting with their authority, and I am giving this permission on their behalf.",
       "attestationRequired": "This box has to be ticked before we can continue."
     },
-
     "residency": "This information is stored on servers in India.",
     "submit": "Give permission and finish",
     "storedAt": "Permission recorded on {{date}}."
   },
-
   "settings": {
     "title": "Settings",
     "consent": {
@@ -242,6 +229,33 @@
       "withdrawConfirmAction": "Delete everything",
       "withdrawDone": "Deleted. Nothing about that person remains on our servers.",
       "withdrawFailed": "The deletion did not complete. Nothing has been removed. Try again, and if it keeps failing, contact us."
+    }
+  },
+  "sync": {
+    "lastSynced": "Last synced {{when}}",
+    "never": "Not synced yet",
+    "pending_one": "1 waiting to sync",
+    "pending_other": "{{count}} waiting to sync",
+    "dropped_one": "1 could not be saved on this device",
+    "dropped_other": "{{count}} could not be saved on this device"
+  },
+  "patient": {
+    "replayAudio": "Listen again",
+    "rotate": {
+      "title": "Please turn the tablet sideways.",
+      "body": "This needs a wider screen, at least 1024 pixels across."
+    }
+  },
+  "caregiver": {
+    "home": {
+      "title": "Xorai",
+      "noPatient": "Nobody has been set up on this device yet.",
+      "startOnboarding": "Set up the person you care for",
+      "openPatientMode": "Hand the tablet over",
+      "openPatientModeHint": "Opens the simplified screen. Hold the bottom-left corner for three seconds to come back.",
+      "settings": "Settings",
+      "setupNeeded": "Connect a database to finish setting up",
+      "setupNeededBody": "Onboarding, sign-in and syncing stay unavailable until VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in .env.local. The patient screens work without it."
     }
   }
 }

@@ -2,10 +2,10 @@
 
 The agent updates this at the end of every phase. Humans read the top three lines.
 
-**Current phase:** Phase 2 — Supabase: schema, RLS, auth, consent (completed)
+**Current phase:** Phase 3 — Offline layer (completed)
 **Last file worked on:** `memory.md`
-**Next action:** Phase 3 — Offline layer (Block D + amendment 3 in `docs/buildbook.md`)
-**Last updated:** 2026-09-10
+**Next action:** Phase 4 — Telemetry SDK, clock, orientation (Block E + amendment 2 in `docs/buildbook.md`)
+**Last updated:** 2026-09-11
 
 ---
 
@@ -16,7 +16,7 @@ The agent updates this at the end of every phase. Humans read the top three line
 | 0 | Foundation, tooling, first deploy | done | ☑ scaffolding complete; boundary lint rules & build passing | `42dba45` |
 | 1 | Design system, patient shell, i18n scaffold | done | ☑ 60 px targets, 7:1 contrast; tokens, primitives, patient & caregiver shells, /demo harness | `10c8791` |
 | 2 | Supabase — schema, RLS, auth, consent | done | ☑ schema & RLS migrations written, auth, onboarding, consent, rls.test.ts | `aa27e5e` |
-| 3 | Offline layer | not started | ☐ airplane-mode session survives force-quit, syncs with zero dupes | — |
+| 3 | Offline layer | done | ☑ airplane-mode session survives force-quit, syncs with zero dupes; sync.test.ts passing | `0d7d8dc` |
 | 4 | Telemetry SDK, clock, orientation | not started | ☐ `tests/clock.test.ts` green; hesitation computable from real rows | — |
 | 5 | Voice & language pipeline | not started | ☐ full Assamese session offline, zero requests on the patient path | — |
 | 6 | Assistance layer | not started | ☐ reminder fires with audio offline; kinship terms spoken correctly | — |
@@ -35,6 +35,37 @@ Status values: `not started` · `in progress` · `blocked` · `done`
 ---
 
 ## Completed phases log
+
+### Phase 3 — Offline layer
+- **Status:** done
+- **Files created:**
+  - `src/core/db/dexie.ts` (Dexie v1 schema with 10 stores: outbox, state stores, cached summaries)
+  - `src/core/db/schemas.ts` (zod schemas for outbox rows and telemetry validation)
+  - `src/core/db/outbox.ts` (void-returning `queueSession`, `queueAttempt`, `queueStroke`, `queueRhythmTrial`)
+  - `src/core/db/sync-engine.ts` (batch sync engine, exponential backoff, foreign-key ordered flushes, pruning)
+  - `src/sw.ts` (Service Worker with precaching and runtime caching)
+  - `src/caregiver/dashboard/SyncStatus.tsx` (offline/syncing/synced visual indicator with relative timestamps)
+  - `src/caregiver/dashboard/CaregiverHome.tsx` (caregiver home landing screen)
+  - `tests/sync.test.ts` (9/9 passing tests for Dexie outbox and sync engine)
+  - `public/icons/` (PWA icon placeholders)
+- **Files modified:**
+  - `vite.config.ts` (registered `VitePWA` with `injectManifest`, 25 MB precache budget check in `closeBundle`)
+  - `src/app/providers.tsx` (`syncEngine.start()` at app root)
+  - `src/app/router.tsx` (integrated `CaregiverHome` and routes)
+  - `src/patient/shell/PatientShell.tsx` (offline patient shell resilience)
+  - `src/core/supabase/client.ts` (`getSupabase()` lazy client preventing module-load throws)
+  - `i18n/en.json` (sync status translation keys)
+  - `CLAUDE.md` (updated tree and contracts for Dexie, outbox, sw, and precache check)
+  - `memory.md` (updated build state, notes, and log)
+- **Deferred / surprises:**
+  - IndexedDB rejects `null` as key: `flushed_at` is `number` with `0` for unflushed and `-1` for quarantined.
+  - Outbox queue functions return `void` to prevent awaiting network in interaction handlers.
+  - Precache budget assertion runs as a `sequential`/`post` `closeBundle` hook.
+  - `getSupabase()` lazy initialization prevents missing `.env.local` from breaking offline and tests.
+  - Zod `.nullable()` requires explicit `null` rather than `undefined` for optional telemetry fields.
+- **Next phase:** Phase 4 — Telemetry SDK, clock, orientation (Block E + amendment 2 in `docs/buildbook.md`).
+
+---
 
 ### Phase 2 — Supabase: schema, RLS, auth, consent
 - **Status:** done
@@ -132,7 +163,10 @@ Status values: `not started` · `in progress` · `blocked` · `done`
 | Assistance | `src/patient/assist/` | — |
 | Onboarding | `src/caregiver/onboarding/` | 6 steps + api + zod schemas |
 | Dashboard | `src/caregiver/dashboard/` | — |
-| Offline | `src/core/db/` | — |
+| Offline | `src/core/db/` | `dexie.ts`, `schemas.ts`, `outbox.ts`, `sync-engine.ts` |
+| Service worker | `src/sw.ts` | precache + runtime caches |
+| Sync indicator | `src/caregiver/dashboard/SyncStatus.tsx` | caregiver mode only |
+| PWA icons | `public/icons/` | **placeholders, replace before submission** |
 | Telemetry | `src/core/telemetry/` | types only |
 | Supabase client | `src/core/supabase/client.ts` | written; `types.ts` not yet generated |
 | Auth | `src/caregiver/auth/` | email+password, reset, phone OTP behind the flag |
@@ -168,6 +202,17 @@ Status values: `not started` · `in progress` · `blocked` · `done`
 - Pre-seeded: `difficulty_state` and `retrieval_state` do NOT use the telemetry idempotency rule. Last-write-wins on a server `updated_at`. Using `ignoreDuplicates` here loses the newer value silently.
 - Pre-seeded: reminders do not fire on a locked screen in a PWA. Kiosk mode is the v1 answer — tablet awake, app foregrounded.
 - Pre-seeded: `cv_rt` is per game_type. Pooling reaction times across games makes the headline metric measure which games were played, not the person.
+- **Cleanup pass: never import a Supabase client at module scope.** Use `getSupabase()`. A module-level instance that throws on missing config couples every downstream module to `.env.local` existing — it white-screened patient mode before React mounted and broke the offline layer's own test. `isSupabaseConfigured()` guards the optional paths.
+- Cleanup pass: i18next resolves a key with `{count}` to `<key>_one` / `<key>_other`. A bare `<key>` is never read for a counted string. Getting this wrong renders the literal key on screen, and only at the moment the count is non-zero.
+- Cleanup pass: `syncEngine.start()` belongs in `src/app/providers.tsx`. Nothing else calls it, and without it the outbox fills forever while the app looks fine.
+- **Phase 3, the one that would have cost a day:** IndexedDB rejects `null` as a key. A row written with `flushed_at: null` is silently absent from the `flushed_at` index — `where('flushed_at').equals(null)` does not throw, it returns nothing. The outbox would have looked permanently empty while filling up, with no error anywhere. Hence `flushed_at: number`, `0` = unflushed, `-1` = quarantined. **Never make this column nullable.**
+- Phase 3: an unparseable outbox row (written by an older app version) is moved to `flushed_at = -1`, not deleted — `rules.md` 2 forbids deleting an unflushed row. Moving it out of the UNFLUSHED index is what stops it sitting at the head of every batch and blocking the queue behind it forever. Pruning uses `between(1, cutoff)`, so neither 0 nor -1 can ever be caught by it.
+- Phase 3: `queue*` functions return `void`, not a Promise, on purpose. It is the only way to make "never await a fetch in an interaction handler" unwriteable rather than merely forbidden. Do not "fix" them to return promises.
+- Phase 3: the precache budget assertion must be a `closeBundle` hook with `sequential: true, order: 'post'`. vite-plugin-pwa emits `dist/sw.js` from its own `closeBundle`, and `closeBundle` is a parallel hook — the first version of this check ran before the file existed, found nothing, and passed silently. It now throws on every "cannot check" path instead of returning.
+- Phase 3: `sync-engine.ts` imports the Supabase client with a **dynamic** import. A static one would make importing the sync engine require `VITE_SUPABASE_URL`, because `client.ts` throws at module load — which broke `tests/sync.test.ts` outright. The wider issue stands: that eager throw couples every module downstream of it to the presence of `.env.local`.
+- Phase 3: zod `.nullable()` rejects `undefined`. Every optional telemetry field is a required property with a nullable value, so a game must write `null` explicitly — a field simply omitted gets the row quarantined and it never syncs. That is deliberate, but it means Phases 7-9 must not leave fields off.
+- Phase 3: signed Storage URLs carry a token in the query string, so the family-media runtime cache matches with `ignoreSearch: true`. Without it every re-signing stores the same photo again under a new key and burns through the 300-entry cap in about a week.
+- Phase 3: `public/icons/*.png` are generated placeholders, not artwork. Replace before submission.
 - **Phase 2: four DEVIATIONs from `architecture.md` 4, all marked in `0001_init.sql`.** `patients.severity` and `family_members.photo_path` dropped NOT NULL (a resumable flow creates the patient row before severity is asked for; a declined photo consent has to be able to null the path). `retrieval_state.updated_at` added (5.1 indexes on it and amendment 3 makes it the conflict key). Read the comments before "fixing" any of them.
 - **Phase 2: `window` is a reserved SQL word.** `difficulty_state."window"` is quoted. An unquoted one is a syntax error at migration time, not at query time.
 - Phase 2: RLS cannot express "append-only". `consents` is protected by a **column grant** instead — `revoke update` then `grant update (withdrawn_at)`. Same trick, opposite direction, on `flags`: revoke all writes, then grant only `acknowledged_at`. **The revoke must come before the grant**; Supabase grants table-level privileges to `authenticated` by default, so a column grant issued first is widened straight back.

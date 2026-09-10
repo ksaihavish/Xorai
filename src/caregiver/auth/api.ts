@@ -1,4 +1,4 @@
-import { supabase } from '@/core/supabase/client'
+import { SUPABASE_NOT_CONFIGURED, getSupabase } from '@/core/supabase/client'
 
 /**
  * Every Supabase call in caregiver mode goes through a wrapper like this.
@@ -17,6 +17,7 @@ const OK: AuthResult = { ok: true }
  */
 function messageKeyFor(message: string): string {
   const m = message.toLowerCase()
+  if (m === SUPABASE_NOT_CONFIGURED) return 'auth.errors.notConfigured'
   if (m.includes('invalid login credentials')) return 'auth.errors.invalidCredentials'
   if (m.includes('already registered') || m.includes('already been registered')) {
     return 'auth.errors.emailTaken'
@@ -36,10 +37,10 @@ function messageKeyFor(message: string): string {
 
 export async function signIn(email: string, password: string): Promise<AuthResult> {
   try {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error } = await getSupabase().auth.signInWithPassword({ email, password })
     return error ? { ok: false, messageKey: messageKeyFor(error.message) } : OK
-  } catch {
-    return { ok: false, messageKey: 'auth.errors.network' }
+  } catch (thrown) {
+    return { ok: false, messageKey: messageKeyFor(String((thrown as Error)?.message ?? '')) }
   }
 }
 
@@ -55,7 +56,7 @@ export async function signUp(
   displayName: string,
 ): Promise<AuthResult> {
   try {
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await getSupabase().auth.signUp({
       email,
       password,
       options: { data: { display_name: displayName } },
@@ -63,8 +64,8 @@ export async function signUp(
     if (error) return { ok: false, messageKey: messageKeyFor(error.message) }
     if (data.session) await ensureCaregiverRow(displayName)
     return OK
-  } catch {
-    return { ok: false, messageKey: 'auth.errors.network' }
+  } catch (thrown) {
+    return { ok: false, messageKey: messageKeyFor(String((thrown as Error)?.message ?? '')) }
   }
 }
 
@@ -75,7 +76,7 @@ export async function signUp(
  */
 export async function ensureCaregiverRow(displayNameFallback?: string): Promise<void> {
   try {
-    const { data: userData } = await supabase.auth.getUser()
+    const { data: userData } = await getSupabase().auth.getUser()
     const user = userData.user
     if (!user) return
 
@@ -86,7 +87,7 @@ export async function ensureCaregiverRow(displayNameFallback?: string): Promise<
       user.email ??
       'Caregiver'
 
-    await supabase
+    await getSupabase()
       .from('caregivers')
       .upsert(
         { id: user.id, display_name: displayName },
@@ -100,48 +101,48 @@ export async function ensureCaregiverRow(displayNameFallback?: string): Promise<
 
 export async function signOut(): Promise<AuthResult> {
   try {
-    const { error } = await supabase.auth.signOut()
+    const { error } = await getSupabase().auth.signOut()
     return error ? { ok: false, messageKey: messageKeyFor(error.message) } : OK
-  } catch {
-    return { ok: false, messageKey: 'auth.errors.network' }
+  } catch (thrown) {
+    return { ok: false, messageKey: messageKeyFor(String((thrown as Error)?.message ?? '')) }
   }
 }
 
 export async function requestPasswordReset(email: string): Promise<AuthResult> {
   try {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth/new-password`,
     })
     return error ? { ok: false, messageKey: messageKeyFor(error.message) } : OK
-  } catch {
-    return { ok: false, messageKey: 'auth.errors.network' }
+  } catch (thrown) {
+    return { ok: false, messageKey: messageKeyFor(String((thrown as Error)?.message ?? '')) }
   }
 }
 
 export async function updatePassword(password: string): Promise<AuthResult> {
   try {
-    const { error } = await supabase.auth.updateUser({ password })
+    const { error } = await getSupabase().auth.updateUser({ password })
     return error ? { ok: false, messageKey: messageKeyFor(error.message) } : OK
-  } catch {
-    return { ok: false, messageKey: 'auth.errors.network' }
+  } catch (thrown) {
+    return { ok: false, messageKey: messageKeyFor(String((thrown as Error)?.message ?? '')) }
   }
 }
 
 /** Both of these are only reachable when VITE_ENABLE_PHONE_OTP is 'true'. */
 export async function sendPhoneOtp(phone: string): Promise<AuthResult> {
   try {
-    const { error } = await supabase.auth.signInWithOtp({ phone })
+    const { error } = await getSupabase().auth.signInWithOtp({ phone })
     return error ? { ok: false, messageKey: messageKeyFor(error.message) } : OK
-  } catch {
-    return { ok: false, messageKey: 'auth.errors.network' }
+  } catch (thrown) {
+    return { ok: false, messageKey: messageKeyFor(String((thrown as Error)?.message ?? '')) }
   }
 }
 
 export async function verifyPhoneOtp(phone: string, token: string): Promise<AuthResult> {
   try {
-    const { error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' })
+    const { error } = await getSupabase().auth.verifyOtp({ phone, token, type: 'sms' })
     return error ? { ok: false, messageKey: messageKeyFor(error.message) } : OK
-  } catch {
-    return { ok: false, messageKey: 'auth.errors.network' }
+  } catch (thrown) {
+    return { ok: false, messageKey: messageKeyFor(String((thrown as Error)?.message ?? '')) }
   }
 }

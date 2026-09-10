@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { supabase } from '@/core/supabase/client'
+import { getSupabase, isSupabaseConfigured } from '@/core/supabase/client'
 import { ensureCaregiverRow } from '@/caregiver/auth/api'
 
 type AuthState = {
@@ -16,6 +16,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true
+
+    // Unconfigured is a real state, not an error state: the app still runs, the
+    // patient route still works offline, and the caregiver sees a setup notice
+    // rather than a white screen.
+    if (!isSupabaseConfigured()) {
+      setState({ session: null, ready: true })
+      return
+    }
+
+    const supabase = getSupabase()
 
     void supabase.auth.getSession().then(({ data }) => {
       if (!active) return

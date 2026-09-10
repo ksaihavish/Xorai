@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { PatientButton } from '@/ui/PatientButton'
 
 /**
@@ -9,25 +10,28 @@ import { PatientButton } from '@/ui/PatientButton'
  * control in the product and an icon alone is a learned convention this audience
  * has no reason to know.
  *
- * The label is hardcoded English for Phase 1. Phase 5 replaces it with t() against
- * the active language; the word must always be present, never dropped to save room.
+ * The label comes from t(). Phase 5 supplies the other seven languages; the word
+ * must always be present, and must never be dropped to save room.
  */
 export function ReplayAudioButton({
   onReplay,
-  label = 'Listen again',
+  label,
 }: {
   onReplay?: () => void
   label?: string
 }) {
+  const { t } = useTranslation()
+  const text = label ?? t('patient.replayAudio')
+
   return (
     <PatientButton
       onClick={onReplay}
-      aria-label={label}
+      aria-label={text}
       // Offset inside the woven frame so the control never sits on the border.
       className="fixed right-[calc(var(--woven-w,16px)+16px)] top-[calc(var(--woven-w,16px)+16px)] z-20 min-w-touchLg gap-3"
     >
       <SpeakerIcon />
-      <span>{label}</span>
+      <span>{text}</span>
     </PatientButton>
   )
 }

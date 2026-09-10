@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ExitGuard } from '@/patient/shell/ExitGuard'
 import { WovenSessionBorder } from '@/patient/shell/WovenSessionBorder'
 import { useKioskLocks } from '@/patient/shell/useKioskLocks'
@@ -79,17 +80,15 @@ export function PatientShell({
  * Not an error state — design.md 6 forbids those in patient mode entirely. It is
  * an instruction, phrased as one, and it never implies the patient did anything.
  *
- * Hardcoded English for Phase 1. Phase 5 routes it through t() like every other
- * user-facing string.
  */
 function RotateNotice() {
+  const { t } = useTranslation()
+
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-6 px-10 text-center">
       <RotateMark />
-      <p className="max-w-patient text-prompt text-ink">Please turn the tablet sideways.</p>
-      <p className="max-w-patient text-body text-clay">
-        This needs a wider screen, at least 1024 pixels across.
-      </p>
+      <p className="max-w-patient text-prompt text-ink">{t('patient.rotate.title')}</p>
+      <p className="max-w-patient text-body text-clay">{t('patient.rotate.body')}</p>
     </div>
   )
 }

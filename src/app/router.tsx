@@ -5,6 +5,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 // phase's touch list; it belongs next to the other providers.
 import '@/core/i18n'
 import { CaregiverAppShell, CaregiverFlagCard, CaregiverSection } from '@/caregiver/AppShell'
+import { CaregiverHome } from '@/caregiver/dashboard/CaregiverHome'
 import { AuthProvider } from '@/caregiver/auth/AuthProvider'
 import { RequireAuth } from '@/caregiver/auth/RequireAuth'
 import { NewPassword, ResetPassword } from '@/caregiver/auth/ResetPassword'
@@ -18,15 +19,22 @@ import { PatientCard } from '@/ui/PatientCard'
 import { Prompt } from '@/ui/Prompt'
 import { ReplayAudioButton } from '@/ui/ReplayAudioButton'
 
-// Patient mode is deliberately NOT wrapped in RequireAuth. architecture.md 3:
-// the patient never authenticates. The device is bound after the caregiver signs
-// in, and entering patient mode is tapping a large photo.
+/**
+ * Patient mode. Deliberately NOT wrapped in RequireAuth — architecture.md 3: the
+ * patient never authenticates. The device is bound after the caregiver signs in,
+ * and entering patient mode is tapping a large photo.
+ *
+ * The shell is real and so is the exit; the content is empty because Phase 4
+ * owns SessionRunner. Wiring the shell now means the kiosk locks, the woven
+ * frame and the exit hold are exercised on the real route rather than only in
+ * the /demo harness.
+ */
 function PatientRoute() {
-  return <div data-route="patient" />
-}
-
-function CaregiverRoute() {
-  return <div data-route="caregiver" />
+  return (
+    <PatientShell progress={0} onExit={() => window.location.assign('/')}>
+      <div data-route="patient" />
+    </PatientShell>
+  )
 }
 
 /**
@@ -174,7 +182,7 @@ const router = createBrowserRouter([
     path: '/',
     element: (
       <RequireAuth>
-        <CaregiverRoute />
+        <CaregiverHome />
       </RequireAuth>
     ),
   },

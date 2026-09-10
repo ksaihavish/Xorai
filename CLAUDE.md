@@ -2,7 +2,7 @@
 
 **Read this file, not the repo.** It exists so no task starts with a filesystem scan. If the tree or a core contract changes, update this file in the same commit (`docs/rules.md` §1.5).
 
-**Current phase:** Phase 2 complete — Next: Phase 3 (Offline layer — Dexie state stores, outbox, sync engine).
+**Current phase:** Phase 3 complete — Next: Phase 4 (Telemetry SDK, clock, orientation).
 
 ---
 
@@ -24,8 +24,8 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 | Components | shadcn/ui, copy-in | We own the code. No UI kit as a dependency |
 | Server state | TanStack Query v5 | `src/app/providers.tsx` |
 | Client state | Zustand v5 | |
-| Offline store | Dexie 4 (IndexedDB) | Never `localStorage` for telemetry |
-| Service worker | vite-plugin-pwa, `injectManifest` | Installed, **not yet registered** — Phase 3 adds `src/sw.ts` and the config block |
+| Offline store | Dexie 4 (IndexedDB) + dexie-react-hooks | `src/core/db/`. Never `localStorage` for telemetry |
+| Service worker | vite-plugin-pwa, `injectManifest` | `src/sw.ts`. Registered via `registerType: 'autoUpdate'` |
 | Backend | `@supabase/supabase-js` v2 | Postgres + RLS + Edge Functions, Mumbai region |
 | Routing | react-router-dom v7 | |
 | Charts | Recharts | Caregiver mode only |
@@ -57,6 +57,8 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 | `supabase/functions/` | Edge Functions — `nightly-rollup`, `export-pdf`. Service role; the client never writes derived tables |
 | `scripts/` | `generate-audio.ts`, `build-asset-pack.ts`, `seed-telemetry.ts` |
 | `src/main.tsx` | Mount point. Guards on `#root` rather than asserting |
+| `src/sw.ts` | Service worker. Precache + runtime caches, and the NetworkOnly rules for Supabase |
+| `public/icons/` | **Placeholder** PWA icons, generated not designed. Replace before submission |
 | `src/app/router.tsx` | `/p` → patient mode, `/` → caregiver mode (both stubs), `/demo` → the design-system harness showing one patient and one caregiver screen |
 | `src/app/providers.tsx` | `QueryClientProvider` only, for now |
 | `src/patient/` | **Patient mode.** `design.md` is law here. May not import from `src/caregiver/**`, or from `lucide-react` |
@@ -69,9 +71,9 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 | `src/caregiver/AppShell.tsx` | `CaregiverAppShell`, `CaregiverSection` (hairline bands, not cards), `CaregiverFlagCard` (the only carded element in the mode) |
 | `src/caregiver/onboarding/` | `OnboardingFlow` (6 steps, resumable), `steps/Step1..Step6`, `api.ts` (all caregiver reads/writes + storage), `schema.ts` (zod), `VoiceNoteRecorder` |
 | `src/caregiver/auth/` | `AuthProvider`, `RequireAuth`, `SignIn`, `SignUp`, `ResetPassword`, `api.ts`, and `Form.tsx` — caregiver form primitives that belong in `src/ui/` |
-| `src/caregiver/dashboard/` | Trends, compliance calendar, flag cards, clock replay, PDF export |
+| `src/caregiver/dashboard/` | `CaregiverHome.tsx` (the `/` landing screen) and `SyncStatus.tsx`. Trends, calendar, flag cards, clock replay and PDF export land in Phase 13 |
 | `src/caregiver/settings/` | `ConsentSettings` — the DPDP withdraw-and-delete flow |
-| `src/core/db/` | `dexie.ts`, `outbox.ts`, `sync-engine.ts` |
+| `src/core/db/` | `dexie.ts` (v1 schema, 10 stores), `schemas.ts` (zod, parsed on every read out), `outbox.ts` (the four `queue*` writers), `sync-engine.ts` |
 | `src/core/supabase/` | `client.ts` — **the only client in the app**. `types.ts` is generated and still missing; see below |
 | `src/core/telemetry/` | `types.ts` (the contract, written), plus `emit.ts` and `clock.ts` in Phase 4 |
 | `src/core/audio/` | `context.ts`, `scheduler.ts`, `speak.ts` |
@@ -92,6 +94,18 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 `src/ui/cn.ts` — **tailwind-merge is extended with the patient font-size scale.** It resolves `text-*` against its own idea of a size, so `text-prompt` was classified as a colour and silently dropped whenever a colour followed it, collapsing 40 px type to the 16 px browser default. Any new named size added to `tailwind.config.ts` must also be added to the `font-size` class group here or it will vanish at runtime with no error.
 
 **Design-system contracts that are enforced nowhere but must hold:** every interactive element has a visible border *and* a fill at rest; no icon-only buttons; no scale transform on press; focus is 4 px `--focus`, never brass; `--indigo` never distinguishes two options from each other in patient mode.
+
+`src/core/db/dexie.ts` — **`flushed_at` is a number, and 0 means unflushed.** It must never become nullable. IndexedDB rejects `null` as a key, so a row stored with `flushed_at: null` is silently dropped from the index: `where('flushed_at').equals(null)` does not throw, it just never returns the row, and the outbox looks permanently empty while filling up. `-1` means quarantined (unparseable, kept forever, never pruned).
+
+`src/core/db/outbox.ts` — **`queueSession`/`queueAttempt`/`queueStroke`/`queueRhythmTrial` return `void`, not a Promise.** That is the enforcement mechanism for "the network is never in the interaction path": a function that returns nothing cannot be awaited inside a `pointerdown` handler.
+
+`src/core/db/sync-engine.ts` — flush order `sessions → attempts → strokes → rhythm` is a foreign-key order, not a preference. Batches of 200, `ignoreDuplicates` on `client_event_id` (`id` for sessions) as the entire idempotency story, backoff 1s→5min, prune only confirmed rows older than 7 days. It never throws into the UI.
+
+`src/core/supabase/client.ts` — **never import a client at module scope.** Call `getSupabase()`, and guard optional paths with `isSupabaseConfigured()`. An earlier version threw at module load when `.env.local` was absent, which white-screened the patient route before React mounted and made the offline layer's own test unrunnable. A patient must never see a technical failure (design.md §6), and the offline layer specifically has to work when the backend does not.
+
+`src/app/providers.tsx` — **`syncEngine.start()` lives here**, at the root, not in a screen. The outbox fills whether or not anything drains it, and the engine has to keep running while patient mode is on screen, which is where the events come from.
+
+`vite.config.ts` — the **precache budget assertion** fails the build above 25 MB (`architecture.md` §5.3). It runs as a `sequential`/`post` `closeBundle` hook because vite-plugin-pwa emits `sw.js` from its own `closeBundle`, and it throws rather than returning on every "cannot check" path.
 
 `supabase/migrations/0002_rls.sql` — RLS on every table, plus two things RLS cannot express:
 - **`consents` is append-only by column grant.** `UPDATE` is revoked on every column but `withdrawn_at`, because "you may withdraw but you may not rewrite what was agreed" is column-level, not row-level. `tests/rls.test.ts` asserts it.

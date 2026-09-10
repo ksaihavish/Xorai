@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+import { isSupabaseConfigured } from '@/core/supabase/client'
 import type {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
@@ -223,6 +225,21 @@ export function FormError({ children }: { children: ReactNode }) {
   )
 }
 
+/**
+ * A setup notice, not an error. It is shown before the form rather than after a
+ * failed submit because a caregiver who cannot sign in should not have to guess
+ * whether they typed the password wrong.
+ */
+export function NotConfiguredNotice() {
+  const { t } = useTranslation()
+
+  return (
+    <p className="mb-6 max-w-[72ch] rounded-[6px] border border-brass bg-paperSunk px-3 py-3 text-[14px] leading-[1.55] text-ink">
+      {t('auth.errors.notConfigured')}
+    </p>
+  )
+}
+
 /** The narrow single-column frame the auth screens sit in. */
 export function AuthPage({
   title,
@@ -242,6 +259,7 @@ export function AuthPage({
         {subtitle ? (
           <p className="mb-8 max-w-[72ch] text-[14px] leading-[1.55] text-clay">{subtitle}</p>
         ) : null}
+        {!isSupabaseConfigured() ? <NotConfiguredNotice /> : null}
         {children}
         {footer ? <div className="mt-8 border-t border-rule pt-5 text-[14px]">{footer}</div> : null}
       </div>

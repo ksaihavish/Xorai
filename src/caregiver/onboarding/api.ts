@@ -1,5 +1,5 @@
 import { v7 as uuidv7 } from 'uuid'
-import { supabase } from '@/core/supabase/client'
+import { SUPABASE_NOT_CONFIGURED, getSupabase } from '@/core/supabase/client'
 import {
   consentRow,
   familyMemberRow,
@@ -33,6 +33,12 @@ function fail<T>(messageKey = 'auth.errors.generic'): Result<T> {
   return { ok: false, messageKey }
 }
 
+/** A missing .env.local is a setup problem, not a network problem. Say which. */
+function failFrom<T>(thrown: unknown): Result<T> {
+  const message = String((thrown as Error | undefined)?.message ?? '')
+  return fail(message === SUPABASE_NOT_CONFIGURED ? 'auth.errors.notConfigured' : 'auth.errors.network')
+}
+
 export const BUCKETS = {
   patientPhotos: 'patient-photos',
   familyPhotos: 'family-photos',
@@ -61,11 +67,11 @@ export async function uploadObject(
 ): Promise<Result<string>> {
   try {
     const path = objectPath(patientId, fileName)
-    const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: false })
+    const { error } = await getSupabase().storage.from(bucket).upload(path, file, { upsert: false })
     if (error) return fail('auth.errors.generic')
     return { ok: true, value: path }
-  } catch {
-    return fail('auth.errors.network')
+  } catch (thrown) {
+    return failFrom(thrown)
   }
 }
 
@@ -79,7 +85,7 @@ export async function signedUrl(
   expiresInSeconds = 3600,
 ): Promise<string | null> {
   try {
-    const { data, error } = await supabase.storage
+    const { data, error } = await getSupabase().storage
       .from(bucket)
       .createSignedUrl(path, expiresInSeconds)
     return error ? null : data.signedUrl
@@ -91,7 +97,7 @@ export async function signedUrl(
 async function removeObjects(bucket: BucketName, paths: string[]): Promise<void> {
   if (paths.length === 0) return
   try {
-    await supabase.storage.from(bucket).remove(paths)
+    await getSupabase().storage.from(bucket).remove(paths)
   } catch {
     // Recorded by the caller's result, never surfaced from here.
   }
@@ -100,7 +106,7 @@ async function removeObjects(bucket: BucketName, paths: string[]): Promise<void>
 /** Everything this caregiver stored for this patient, across one bucket. */
 async function listAllObjects(bucket: BucketName, patientId: string): Promise<string[]> {
   try {
-    const { data, error } = await supabase.storage.from(bucket).list(patientId, { limit: 1000 })
+    const { data, error } = await getSupabase().storage.from(bucket).list(patientId, { limit: 1000 })
     if (error || !data) return []
     return data.map((entry) => `${patientId}/${entry.name}`)
   } catch {
@@ -112,7 +118,7 @@ async function listAllObjects(bucket: BucketName, patientId: string): Promise<st
 
 export async function loadDraftPatient(caregiverId: string): Promise<Result<PatientRow | null>> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('patients')
       .select('*')
       .eq('caregiver_id', caregiverId)
@@ -124,8 +130,8 @@ export async function loadDraftPatient(caregiverId: string): Promise<Result<Pati
 
     const parsed = patientRow.safeParse(first)
     return parsed.success ? { ok: true, value: parsed.data } : fail('auth.errors.generic')
-  } catch {
-    return fail('auth.errors.network')
+  } catch (thrown) {
+    return failFrom(thrown)
   }
 }
 
@@ -147,9 +153,10 @@ export async function savePatientProfile(
   input: ProfileInput,
 ): Promise<Result<PatientRow>> {
   try {
+    const client = getSupabase()
     const query = existingId
-      ? supabase.from('patients').update(input).eq('id', existingId).select('*').single()
-      : supabase
+      ? client.from('patients').update(input).eq('id', existingId).select('*').single()
+      : client
           .from('patients')
           .insert({ ...input, caregiver_id: caregiverId })
           .select('*')
@@ -160,8 +167,8 @@ export async function savePatientProfile(
 
     const parsed = patientRow.safeParse(data)
     return parsed.success ? { ok: true, value: parsed.data } : fail('auth.errors.generic')
-  } catch {
-    return fail('auth.errors.network')
+  } catch (thrown) {
+    return failFrom(thrown)
   }
 }
 
@@ -170,10 +177,10 @@ export async function setPatientPhoto(
   path: string | null,
 ): Promise<Result<null>> {
   try {
-    const { error } = await supabase.from('patients').update({ photo_path: path }).eq('id', patientId)
+    const { error } = await getSupabase().from('patients').update({ photo_path: path }).eq('id', patientId)
     return error ? fail('auth.errors.generic') : { ok: true, value: null }
-  } catch {
-    return fail('auth.errors.network')
+  } catch (thrown) {
+    return failFrom(thrown)
   }
 }
 
@@ -182,10 +189,10 @@ export async function saveSeverity(
   value: SeverityValue,
 ): Promise<Result<null>> {
   try {
-    const { error } = await supabase.from('patients').update({ severity: value }).eq('id', patientId)
+    const { error } = await getSupabase().from('patients').update({ severity: value }).eq('id', patientId)
     return error ? fail('auth.errors.generic') : { ok: true, value: null }
-  } catch {
-    return fail('auth.errors.network')
+  } catch (thrown) {
+    return failFrom(thrown)
   }
 }
 
@@ -193,7 +200,7 @@ export async function saveSeverity(
 
 export async function listFamily(patientId: string): Promise<Result<FamilyMemberRow[]>> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('family_members')
       .select('*')
       .eq('patient_id', patientId)
@@ -202,8 +209,8 @@ export async function listFamily(patientId: string): Promise<Result<FamilyMember
 
     const parsed = familyMemberRow.array().safeParse(data ?? [])
     return parsed.success ? { ok: true, value: parsed.data } : fail('auth.errors.generic')
-  } catch {
-    return fail('auth.errors.network')
+  } catch (thrown) {
+    return failFrom(thrown)
   }
 }
 
@@ -223,7 +230,7 @@ export async function addFamilyMember(
   input: FamilyInput,
 ): Promise<Result<FamilyMemberRow>> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('family_members')
       .insert({ ...input, patient_id: patientId })
       .select('*')
@@ -232,17 +239,17 @@ export async function addFamilyMember(
 
     const parsed = familyMemberRow.safeParse(data)
     return parsed.success ? { ok: true, value: parsed.data } : fail('auth.errors.generic')
-  } catch {
-    return fail('auth.errors.network')
+  } catch (thrown) {
+    return failFrom(thrown)
   }
 }
 
 export async function removeFamilyMember(id: string): Promise<Result<null>> {
   try {
-    const { error } = await supabase.from('family_members').delete().eq('id', id)
+    const { error } = await getSupabase().from('family_members').delete().eq('id', id)
     return error ? fail('auth.errors.generic') : { ok: true, value: null }
-  } catch {
-    return fail('auth.errors.network')
+  } catch (thrown) {
+    return failFrom(thrown)
   }
 }
 
@@ -250,7 +257,7 @@ export async function removeFamilyMember(id: string): Promise<Result<null>> {
 
 export async function listMusic(patientId: string): Promise<Result<MusicTrackRow[]>> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('music_tracks')
       .select('*')
       .eq('patient_id', patientId)
@@ -259,8 +266,8 @@ export async function listMusic(patientId: string): Promise<Result<MusicTrackRow
 
     const parsed = musicTrackRow.array().safeParse(data ?? [])
     return parsed.success ? { ok: true, value: parsed.data } : fail('auth.errors.generic')
-  } catch {
-    return fail('auth.errors.network')
+  } catch (thrown) {
+    return failFrom(thrown)
   }
 }
 
@@ -271,7 +278,7 @@ export async function addMusicTrack(
   source: string,
 ): Promise<Result<MusicTrackRow>> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('music_tracks')
       .insert({ patient_id: patientId, title, audio_path: audioPath, source })
       .select('*')
@@ -280,18 +287,18 @@ export async function addMusicTrack(
 
     const parsed = musicTrackRow.safeParse(data)
     return parsed.success ? { ok: true, value: parsed.data } : fail('auth.errors.generic')
-  } catch {
-    return fail('auth.errors.network')
+  } catch (thrown) {
+    return failFrom(thrown)
   }
 }
 
 export async function removeMusicTrack(id: string, audioPath: string): Promise<Result<null>> {
   try {
     await removeObjects(BUCKETS.music, [audioPath])
-    const { error } = await supabase.from('music_tracks').delete().eq('id', id)
+    const { error } = await getSupabase().from('music_tracks').delete().eq('id', id)
     return error ? fail('auth.errors.generic') : { ok: true, value: null }
-  } catch {
-    return fail('auth.errors.network')
+  } catch (thrown) {
+    return failFrom(thrown)
   }
 }
 
@@ -299,7 +306,7 @@ export async function removeMusicTrack(id: string, audioPath: string): Promise<R
 
 export async function listReminders(patientId: string): Promise<Result<ReminderRow[]>> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('reminders')
       .select('*')
       .eq('patient_id', patientId)
@@ -308,8 +315,8 @@ export async function listReminders(patientId: string): Promise<Result<ReminderR
 
     const parsed = reminderRow.array().safeParse(data ?? [])
     return parsed.success ? { ok: true, value: parsed.data } : fail('auth.errors.generic')
-  } catch {
-    return fail('auth.errors.network')
+  } catch (thrown) {
+    return failFrom(thrown)
   }
 }
 
@@ -335,7 +342,7 @@ export async function replaceReminders(
   inputs: ReminderInput[],
 ): Promise<Result<null>> {
   try {
-    const { error: deleteError } = await supabase
+    const { error: deleteError } = await getSupabase()
       .from('reminders')
       .delete()
       .eq('patient_id', patientId)
@@ -343,12 +350,12 @@ export async function replaceReminders(
 
     if (inputs.length === 0) return { ok: true, value: null }
 
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('reminders')
       .insert(inputs.map((input) => ({ ...input, patient_id: patientId })))
     return error ? fail('auth.errors.generic') : { ok: true, value: null }
-  } catch {
-    return fail('auth.errors.network')
+  } catch (thrown) {
+    return failFrom(thrown)
   }
 }
 
@@ -356,7 +363,7 @@ export async function replaceReminders(
 
 export async function latestConsent(patientId: string): Promise<Result<ConsentRow | null>> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('consents')
       .select('*')
       .eq('patient_id', patientId)
@@ -369,8 +376,8 @@ export async function latestConsent(patientId: string): Promise<Result<ConsentRo
 
     const parsed = consentRow.safeParse(first)
     return parsed.success ? { ok: true, value: parsed.data } : fail('auth.errors.generic')
-  } catch {
-    return fail('auth.errors.network')
+  } catch (thrown) {
+    return failFrom(thrown)
   }
 }
 
@@ -390,7 +397,7 @@ export async function recordConsent(
   noticeLocale: string,
 ): Promise<Result<ConsentRow>> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('consents')
       .insert({
         patient_id: patientId,
@@ -410,8 +417,8 @@ export async function recordConsent(
 
     await applyScopeDeletions(patientId, scopes)
     return { ok: true, value: parsed.data }
-  } catch {
-    return fail('auth.errors.network')
+  } catch (thrown) {
+    return failFrom(thrown)
   }
 }
 
@@ -428,8 +435,8 @@ async function applyScopeDeletions(patientId: string, scopes: ConsentScopes): Pr
     await removeObjects(BUCKETS.patientPhotos, await listAllObjects(BUCKETS.patientPhotos, patientId))
     await removeObjects(BUCKETS.familyPhotos, await listAllObjects(BUCKETS.familyPhotos, patientId))
     try {
-      await supabase.from('patients').update({ photo_path: null }).eq('id', patientId)
-      await supabase.from('family_members').update({ photo_path: null }).eq('patient_id', patientId)
+      await getSupabase().from('patients').update({ photo_path: null }).eq('id', patientId)
+      await getSupabase().from('family_members').update({ photo_path: null }).eq('patient_id', patientId)
     } catch {
       // The objects are already gone; the dangling paths are corrected on retry.
     }
@@ -439,11 +446,11 @@ async function applyScopeDeletions(patientId: string, scopes: ConsentScopes): Pr
     await removeObjects(BUCKETS.voiceNotes, await listAllObjects(BUCKETS.voiceNotes, patientId))
     await removeObjects(BUCKETS.music, await listAllObjects(BUCKETS.music, patientId))
     try {
-      await supabase
+      await getSupabase()
         .from('family_members')
         .update({ voice_note_path: null })
         .eq('patient_id', patientId)
-      await supabase.from('music_tracks').delete().eq('patient_id', patientId)
+      await getSupabase().from('music_tracks').delete().eq('patient_id', patientId)
     } catch {
       // As above.
     }
@@ -465,7 +472,7 @@ async function applyScopeDeletions(patientId: string, scopes: ConsentScopes): Pr
  */
 export async function withdrawConsentAndDelete(patientId: string): Promise<Result<null>> {
   try {
-    const { error: withdrawError } = await supabase
+    const { error: withdrawError } = await getSupabase()
       .from('consents')
       .update({ withdrawn_at: new Date().toISOString() })
       .eq('patient_id', patientId)
@@ -476,7 +483,7 @@ export async function withdrawConsentAndDelete(patientId: string): Promise<Resul
       await removeObjects(bucket, await listAllObjects(bucket, patientId))
     }
 
-    const { error } = await supabase.from('patients').delete().eq('id', patientId)
+    const { error } = await getSupabase().from('patients').delete().eq('id', patientId)
     if (error) return fail('settings.consent.withdrawFailed')
 
     return { ok: true, value: null }
