@@ -2,7 +2,7 @@
 
 **Read this file, not the repo.** It exists so no task starts with a filesystem scan. If the tree or a core contract changes, update this file in the same commit (`docs/rules.md` §1.5).
 
-**Current phase:** Phase 0 complete — Next: Phase 1 (Design system, patient shell, i18n scaffold).
+**Current phase:** Phase 1 complete — Next: Phase 2 (Supabase — schema, RLS, auth, consent).
 
 ---
 
@@ -20,7 +20,7 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 |---|---|---|
 | Build | Vite 6 + `@vitejs/plugin-react` | `vite.config.ts` holds the `@/*` alias and the vitest block |
 | UI | React 19 + TypeScript strict | `noUncheckedIndexedAccess` on; no `any`, no `@ts-ignore`, no `!` outside tests |
-| Styling | Tailwind CSS **3.4.17, pinned, no caret** | v4 moved config into CSS. Do not let a bump move it |
+| Styling | Tailwind CSS **3.4.17, pinned, no caret** | `tailwind.config.ts`. v4 moved config into CSS. Do not let a bump move it |
 | Components | shadcn/ui, copy-in | We own the code. No UI kit as a dependency |
 | Server state | TanStack Query v5 | `src/app/providers.tsx` |
 | Client state | Zustand v5 | |
@@ -33,7 +33,7 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 | Dates | date-fns | Not moment, not dayjs |
 | IDs | uuid v7 (`uuid` v13) | `client_event_id` on every telemetry row |
 | Validation | zod | Anything crossing the network or coming out of Dexie |
-| Class names | clsx + tailwind-merge | |
+| Class names | clsx + tailwind-merge | `src/ui/cn.ts` — tailwind-merge is **extended** with the patient font-size scale, see below |
 | Icons | lucide-react | **Caregiver mode only.** Lint-enforced |
 | Tests | vitest + @testing-library/react (jsdom) | `tests/` |
 | Lint | eslint 9 flat config + typescript-eslint | `eslint.config.js` holds the boundary rule |
@@ -51,20 +51,21 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 | `public/audio/` | Pre-generated speech, one folder per language, precached |
 | `public/audio/drums/` | Dhol / gogona / pepa samples for Dhol Bator, pre-decoded at app start |
 | `public/assets/cultural/` | The Xorai Milan deck — square WebP, ≤120 KB each |
-| `public/fonts/` | Noto subsets for the NER scripts |
+| `public/fonts/` | Self-hosted woff2 subsets + `fonts.css`. Noto Sans (latin, latin-ext, devanagari), Noto Sans Bengali (bengali), Inter (latin, latin-ext). Weights 400/600 only, **no italic face**. Meetei Mayek lands in Phase 9 |
 | `supabase/migrations/` | Numbered, forward-only `.sql`. Never edited after being applied |
 | `supabase/functions/` | Edge Functions — `nightly-rollup`, `export-pdf`. Service role; the client never writes derived tables |
 | `scripts/` | `generate-audio.ts`, `build-asset-pack.ts`, `seed-telemetry.ts` |
 | `src/main.tsx` | Mount point. Guards on `#root` rather than asserting |
-| `src/app/router.tsx` | `/p` → patient mode, `/` → caregiver mode. Both stubs today |
+| `src/app/router.tsx` | `/p` → patient mode, `/` → caregiver mode (both stubs), `/demo` → the design-system harness showing one patient and one caregiver screen |
 | `src/app/providers.tsx` | `QueryClientProvider` only, for now |
 | `src/patient/` | **Patient mode.** `design.md` is law here. May not import from `src/caregiver/**`, or from `lucide-react` |
-| `src/patient/shell/` | `PatientShell`, `ExitGuard`, `WakeLock` |
+| `src/patient/shell/` | `PatientShell` (viewport, landscape gate, kiosk locks), `WovenSessionBorder` (the frame **is** the progress indicator), `weave.ts` (gamosa CSS), `ExitGuard` (3 s hold, no PIN), `useKioskLocks` |
 | `src/patient/session/` | `SessionRunner`, `GameHost`, the close screen |
 | `src/patient/games/` | One folder per game: `aponjon`, `dhol-bator`, `xorai-milan`, `ghorir-chobi` |
 | `src/patient/orientation/` | The reality-orientation warm-up that runs every session |
 | `src/patient/assist/` | Reminders, contact cards, SOS, music, the always-available orientation card |
 | `src/caregiver/` | **Caregiver mode.** Different design system. May not import from `src/patient/**` |
+| `src/caregiver/AppShell.tsx` | `CaregiverAppShell`, `CaregiverSection` (hairline bands, not cards), `CaregiverFlagCard` (the only carded element in the mode) |
 | `src/caregiver/onboarding/` | Profile, family, music, routine, DPDP consent |
 | `src/caregiver/dashboard/` | Trends, compliance calendar, flag cards, clock replay, PDF export |
 | `src/caregiver/settings/` | |
@@ -74,8 +75,8 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 | `src/core/audio/` | `context.ts`, `scheduler.ts`, `speak.ts` |
 | `src/core/i18n/` | `t()` wiring and the language packs |
 | `src/core/difficulty/` | `staircase.ts`, `spaced-retrieval.ts` |
-| `src/ui/` | shadcn primitives, re-tokenised. Shared by both modes |
-| `src/styles/tokens.css` | Design tokens. Empty until Phase 1 |
+| `src/ui/` | `cn.ts`, `PatientButton`, `PatientCard`, `Prompt`, `ReplayAudioButton`. Patient primitives written to design.md 5, **not** shadcn defaults. shadcn copies land here too when a phase needs one |
+| `src/styles/tokens.css` | The three `@tailwind` directives, then every token from design.md 2 plus the `[data-mode="caregiver"]` overrides |
 | `tests/` | `rls.test.ts`, `sync.test.ts`, `clock.test.ts` — none of these may be deleted or skipped |
 
 ---
@@ -85,6 +86,10 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 `src/core/telemetry/types.ts` — `GameType`, `Domain`, `Severity`, `ErrorType`, `AttemptEvent`, `StrokeEvent`, `RhythmTrialEvent`, `SessionRecord`, `GameSummary`, `LocalPatient`, `GameContext`, `SessionClock`. Field names mirror the Postgres columns in `docs/architecture.md` §4 exactly; renaming one is a migration, not a refactor.
 
 `eslint.config.js` — the patient/caregiver import boundary, plus the `lucide-react` ban in `src/patient/**`. Error, not warning.
+
+`src/ui/cn.ts` — **tailwind-merge is extended with the patient font-size scale.** It resolves `text-*` against its own idea of a size, so `text-prompt` was classified as a colour and silently dropped whenever a colour followed it, collapsing 40 px type to the 16 px browser default. Any new named size added to `tailwind.config.ts` must also be added to the `font-size` class group here or it will vanish at runtime with no error.
+
+**Design-system contracts that are enforced nowhere but must hold:** every interactive element has a visible border *and* a fill at rest; no icon-only buttons; no scale transform on press; focus is 4 px `--focus`, never brass; `--indigo` never distinguishes two options from each other in patient mode.
 
 ---
 

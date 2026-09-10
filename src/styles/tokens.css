@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Tokens from design.md 2. Measured contrast ratios are in the comments because
+   the numbers are the argument: this product holds WCAG AAA (7:1), not AA, since
+   presbyopia and lens yellowing reduce contrast sensitivity and near-point focus
+   shifts from ~10 cm at 20 to ~100 cm at 70. */
+:root {
+  /* ground */
+  --paper:        #FDFAF3;   /* gamosa cotton, warm white */
+  --paper-sunk:   #F4EEE2;   /* recessed surfaces, card wells */
+
+  /* structure */
+  --madder:       #B3342B;   /* the gamosa border red */
+  --madder-deep:  #8C2620;   /* pressed state, borders on madder fills */
+
+  /* accent + reward */
+  --brass:        #C08A2E;   /* xorai. the ONLY reward colour. */
+  --brass-soft:   #E8D3A4;   /* fills, glows, filled progress */
+
+  /* affirmation */
+  --tea:          #2E4632;   /* tea-garden green. correct, complete, safe. */
+  --tea-soft:     #CFDCCB;
+
+  /* text */
+  --ink:          #2A211A;   /* lac-black, warm. body text. ~14:1 on paper. */
+  --clay:         #5E5142;   /* secondary text. 7.4:1 on paper, MEASURED.
+                                The old #6B5B49 measured 6.26:1 and failed the
+                                AAA law this file sets. */
+  --focus:        #8A241C;   /* focus rings. 8.35:1. Brass measured 2.91:1 and
+                                missed even the 3:1 non-text minimum. */
+
+  /* regional layer only (design.md Part II 3).
+     --indigo may NEVER distinguish two options from each other in patient mode:
+     the ageing lens yellows and shifts blue perception, so two blues a designer
+     separates easily may be identical to a 78-year-old. Structural ground only. */
+  --indigo:       #2E3A5C;   /* Manipuri / Naga textile indigo. STRUCTURE ONLY. */
+  --terracotta:   #9C5A3C;   /* Assam pottery. Deck card backgrounds. */
+}
+
+[data-mode="caregiver"] {
+  --paper:      #F8F8F6;
+  --paper-sunk: #FFFFFF;
+  --ink:        #1E2A24;
+  --clay:       #5F6B63;
+  --rule:       #DFE2DD;      /* hairline dividers */
+  --signal:     #35576B;      /* system/sync state — cool, and allowed here */
+  /* charts reuse madder / brass / tea so the two modes read as one product */
+}

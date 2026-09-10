@@ -2,9 +2,9 @@
 
 The agent updates this at the end of every phase. Humans read the top three lines.
 
-**Current phase:** Phase 0 — Foundation, tooling, first deploy (completed)
+**Current phase:** Phase 1 — Design system, patient shell, i18n scaffold (completed)
 **Last file worked on:** `memory.md`
-**Next action:** Phase 1 — Design system, patient shell, i18n scaffold (Block B + amendment 1 in `docs/buildbook.md`)
+**Next action:** Phase 2 — Supabase: schema, RLS, auth, consent (Block C in `docs/buildbook.md`)
 **Last updated:** 2026-09-10
 
 ---
@@ -14,7 +14,7 @@ The agent updates this at the end of every phase. Humans read the top three line
 | # | Phase | Status | Exit criterion met? | Commit |
 |---|---|---|---|---|
 | 0 | Foundation, tooling, first deploy | done | ☑ scaffolding complete; boundary lint rules & build passing | `42dba45` |
-| 1 | Design system, patient shell, i18n scaffold | not started | ☐ 60 px targets, 7:1 contrast; no hardcoded user-facing string | — |
+| 1 | Design system, patient shell, i18n scaffold | done | ☑ 60 px targets, 7:1 contrast; tokens, primitives, patient & caregiver shells, /demo harness | `10c8791` |
 | 2 | Supabase — schema, RLS, auth, consent | not started | ☐ `tests/rls.test.ts` proves cross-caregiver isolation | — |
 | 3 | Offline layer | not started | ☐ airplane-mode session survives force-quit, syncs with zero dupes | — |
 | 4 | Telemetry SDK, clock, orientation | not started | ☐ `tests/clock.test.ts` green; hesitation computable from real rows | — |
@@ -35,6 +35,31 @@ Status values: `not started` · `in progress` · `blocked` · `done`
 ---
 
 ## Completed phases log
+
+### Phase 1 — Design system, patient shell, i18n scaffold
+- **Status:** done
+- **Files created:**
+  - `src/styles/tokens.css` (full design tokens from `docs/design.md §2` and `[data-mode="caregiver"]`)
+  - `tailwind.config.ts` (extended theme colors, patient font scale, touch spacing: 60px touch, 72px touchLg)
+  - `public/fonts/fonts.css` + 14 self-hosted woff2 font files (Noto Sans Latin/Devanagari/Bengali, Inter)
+  - `src/ui/cn.ts` (custom tailwind-merge config extending font-size group)
+  - `src/ui/PatientButton.tsx`, `src/ui/PatientCard.tsx`, `src/ui/Prompt.tsx`, `src/ui/ReplayAudioButton.tsx` (patient primitives adhering to 60px/72px targets, visible borders, fills, focus outlines)
+  - `src/patient/shell/PatientShell.tsx`, `src/patient/shell/WovenSessionBorder.tsx`, `src/patient/shell/weave.ts`, `src/patient/shell/ExitGuard.tsx`, `src/patient/shell/useKioskLocks.ts`
+  - `src/caregiver/AppShell.tsx` (`CaregiverAppShell`, `CaregiverSection`, `CaregiverFlagCard`)
+- **Files modified:**
+  - `index.html` (meta tags, viewport lock, fonts.css import)
+  - `src/app/router.tsx` (added `/demo` harness route)
+  - `CLAUDE.md` (updated tree, stack, and tailwind-merge font-size contract)
+  - `memory.md` (updated build state, files, and notes)
+- **Deferred / surprises:**
+  - `tailwind-merge` silent drop of custom font sizes in `cn()` — fixed in `src/ui/cn.ts`.
+  - `ExitGuard` uses timer-based threshold instead of rAF accumulator.
+  - `--ring` and `--brass-deep` tokens did not exist in design tokens; adapted to token rules.
+  - Focus ring uses `--focus` (8.35:1 contrast) instead of brass (2.91:1).
+  - Woven border thickness uses responsive clamp `clamp(12px, 2.6vh, 16px)`.
+- **Next phase:** Phase 2 — Supabase: schema, RLS, auth, consent (Block C in `docs/buildbook.md`).
+
+---
 
 ### Phase 0 — Foundation & scaffolding
 - **Status:** done
@@ -71,8 +96,13 @@ Status values: `not started` · `in progress` · `blocked` · `done`
 | Master context | `CLAUDE.md` | written |
 | Telemetry contract | `src/core/telemetry/types.ts` | written — types only |
 | Boundary lint rule | `eslint.config.js` | written and verified |
-| Design tokens | `src/styles/tokens.css` | empty — Phase 1 |
-| Patient shell | `src/patient/shell/` | — |
+| Design tokens | `src/styles/tokens.css` | written |
+| Tailwind theme | `tailwind.config.ts` | written |
+| Fonts | `public/fonts/` | 14 woff2 subsets + `fonts.css`, 1.19 MB |
+| Patient primitives | `src/ui/` | `cn`, `PatientButton`, `PatientCard`, `Prompt`, `ReplayAudioButton` |
+| Caregiver shell | `src/caregiver/AppShell.tsx` | written |
+| Design harness | `/demo` route | written |
+| Patient shell | `src/patient/shell/` | `PatientShell`, `WovenSessionBorder`, `weave.ts`, `ExitGuard`, `useKioskLocks` |
 | Session runner | `src/patient/session/` | — |
 | Games | `src/patient/games/{aponjon,dhol-bator,xorai-milan,ghorir-chobi}/` | — |
 | Assistance | `src/patient/assist/` | — |
@@ -110,6 +140,13 @@ Status values: `not started` · `in progress` · `blocked` · `done`
 - Pre-seeded: `difficulty_state` and `retrieval_state` do NOT use the telemetry idempotency rule. Last-write-wins on a server `updated_at`. Using `ignoreDuplicates` here loses the newer value silently.
 - Pre-seeded: reminders do not fire on a locked screen in a PWA. Kiosk mode is the v1 answer — tablet awake, app foregrounded.
 - Pre-seeded: `cv_rt` is per game_type. Pooling reaction times across games makes the headline metric measure which games were played, not the person.
+- **Phase 1, the expensive one:** `tailwind-merge` silently deletes named font sizes. It classifies `text-*` as a colour unless the value looks like a size to *its* config, so `cn('text-prompt', 'text-ink')` returned only `text-ink` and every 40 px prompt rendered at the 16 px browser default — 8 px below this product's type floor, with no error anywhere. Fixed by extending the `font-size` class group in `src/ui/cn.ts`. **Any new named size in `tailwind.config.ts` must be added there too.** The bug was invisible in the CSS (the `.text-prompt` rule was generated correctly) and only showed up on screen.
+- Phase 1: `ExitGuard`'s 3-second threshold is a `setTimeout`, not a `requestAnimationFrame` accumulator. rAF was found not firing at all in one browser context, which meant the hold could never complete. Frames draw the ring; the timer owns the contract. Do not merge them back together.
+- Phase 1: `design.md` Part II 2 asks for the weave in `--ring` at 40% opacity. **There is no `--ring` token** in 2 or in 2.1 — the weave uses black at 17% for warp threads and white at 42% for the diamond lattice instead. If a `--ring` token is ever added, revisit `src/patient/shell/weave.ts`.
+- Phase 1: `design.md` 5 names `--brass-deep` for the pressed button border. **There is no such token**; `--madder-deep` is used, which is what the Block B prompt asked for and the only deep token that exists.
+- Phase 1: the exit PIN question is settled — **hold only, no PIN**, per `architecture.md` 3 and `audit.md` 18. The `buildbook.md` Block B prompt still says "4-digit PIN dialog"; it is the line the audit corrected. Do not re-add it without `caregivers.pin_hash` and an onboarding step.
+- Phase 1: focus rings are `--focus` (#8A241C, 8.35:1), never `--brass` (2.91:1, fails even the 3:1 non-text minimum). The Block B prompt says brass; `design.md` 5 and Part II 3 both override it.
+- Phase 1: the woven border thickness is `clamp(12px, 2.6vh, 16px)`, not a flat 16 px — `design.md` 10 makes it responsive because height, not width, is the binding constraint at 1024x600.
 - Phase 0: `docs/phases.md` lists **16** phases (0-15), not the 11 that Block A's prompt mentions. The doc wins; this table is the 16.
 - Phase 0: `vite-plugin-pwa` is installed but **not registered in `vite.config.ts`**. `injectManifest` needs `src/sw.ts` to exist at build time or `vite build` fails. Phase 3 adds both together. Do not wire an empty one to make the plugin "present".
 - Phase 0: `GameSummary` field names are **not** specified in `architecture.md`. Its metric names were taken from the `session_summaries` columns (4) and scoped to one `game_type` per buildbook amendment 7. If Phase 4 needs different fields, change it there before any game consumes it.
