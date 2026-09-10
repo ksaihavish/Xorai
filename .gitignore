@@ -1,0 +1,16 @@
+# Environment files
+.env
+.env.local
+.env*.local
+*.local
+
+# Dependencies
+node_modules/
+
+# Build and deployment outputs
+dist/
+.vercel/
+coverage/
+
+# Supabase temporary files
+supabase/.temp/
