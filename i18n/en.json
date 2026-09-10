@@ -1,0 +1,247 @@
+{
+  "common": {
+    "continue": "Continue",
+    "back": "Back",
+    "save": "Save",
+    "cancel": "Cancel",
+    "remove": "Remove",
+    "add": "Add",
+    "done": "Done",
+    "skip": "Skip this for now",
+    "optional": "Optional",
+    "required": "Required",
+    "loading": "Working…",
+    "retry": "Try that again",
+    "yes": "Yes",
+    "no": "No"
+  },
+
+  "languages": {
+    "en": "English",
+    "as": "Assamese",
+    "brx": "Bodo",
+    "mni": "Manipuri",
+    "ne": "Nepali",
+    "hi": "Hindi",
+    "kha": "Khasi",
+    "lus": "Mizo"
+  },
+
+  "auth": {
+    "signIn": {
+      "title": "Sign in",
+      "subtitle": "This account is yours, the caregiver's. The person you care for never signs in.",
+      "email": "Email address",
+      "password": "Password",
+      "submit": "Sign in",
+      "forgot": "I forgot my password",
+      "noAccount": "Set up a new account"
+    },
+    "signUp": {
+      "title": "Set up your account",
+      "subtitle": "One account per caregiver. You can add the person you care for on the next screen.",
+      "displayName": "Your name",
+      "email": "Email address",
+      "password": "Password",
+      "passwordHint": "At least 8 characters.",
+      "submit": "Create account",
+      "hasAccount": "I already have an account",
+      "checkEmail": "Check your email. We sent a link to confirm this address."
+    },
+    "reset": {
+      "title": "Reset your password",
+      "subtitle": "We will email you a link. Open it on this device.",
+      "submit": "Send the link",
+      "sent": "Sent. Check your email, including the spam folder.",
+      "newPassword": "New password",
+      "setSubmit": "Save new password",
+      "setTitle": "Choose a new password"
+    },
+    "phone": {
+      "tab": "Use a phone number instead",
+      "number": "Phone number",
+      "send": "Send code",
+      "code": "Six-digit code",
+      "verify": "Verify",
+      "sent": "We sent a code to that number."
+    },
+    "signOut": "Sign out",
+    "errors": {
+      "invalidCredentials": "That email and password do not match an account. Check both, or reset the password.",
+      "emailTaken": "An account already uses that email. Sign in instead, or reset the password.",
+      "weakPassword": "Use at least 8 characters.",
+      "invalidEmail": "That does not look like an email address.",
+      "network": "Could not reach the server. Check the connection and try again.",
+      "otpInvalid": "That code did not match. Request a new one.",
+      "generic": "That did not go through. Try again."
+    }
+  },
+
+  "onboarding": {
+    "title": "Setting up",
+    "stepOf": "Step {{current}} of {{total}}",
+    "resume": "Picking up where you left off.",
+    "steps": {
+      "profile": "About them",
+      "severity": "What the doctor said",
+      "family": "Family",
+      "music": "Music",
+      "routine": "Daily routine",
+      "consent": "Permission"
+    },
+
+    "profile": {
+      "title": "About the person you care for",
+      "displayName": "Their name",
+      "displayNameHint": "The name they answer to. This is what the app will speak.",
+      "birthYear": "Year they were born",
+      "birthYearHint": "Used to work out their age. An approximate year is fine.",
+      "education": "How far they went in school",
+      "educationWhy": "Years of schooling strongly affects performance on tasks like these, so we record it once and then only ever compare a person to their own earlier results.",
+      "educationOptions": {
+        "none": "No formal schooling",
+        "primary": "Primary school",
+        "middle": "Middle school",
+        "secondary": "Secondary school",
+        "higher": "College or higher"
+      },
+      "language": "Language they speak at home",
+      "languageHint": "Everything the app says out loud will be in this language.",
+      "homePlace": "Town or district they live in",
+      "homePlaceHint": "Optional. Without it the app skips asking them where they are.",
+      "photo": "A photo of them",
+      "photoHint": "Used on the screen they tap to begin. A clear photo of their face works best.",
+      "photoChoose": "Choose a photo",
+      "photoReplace": "Use a different photo"
+    },
+
+    "severity": {
+      "title": "What has the doctor told you?",
+      "intro": "This is something you tell us, not something the app works out. It is never shown to the person you care for, and the app will never change it on its own. It decides which activities appear and how hard they start.",
+      "notAssessment": "If no doctor has said anything yet, choose the one that best matches day-to-day life. You can change it later.",
+      "label": "As told to you by a doctor",
+      "options": {
+        "mild": "Mild",
+        "moderate": "Moderate",
+        "severe": "Severe"
+      },
+      "hints": {
+        "mild": "Forgets recent conversations, still manages most of the day alone.",
+        "moderate": "Needs reminders and help with everyday tasks.",
+        "severe": "Needs help with most things, and recognising people has become hard."
+      }
+    },
+
+    "family": {
+      "title": "The people they know",
+      "intro": "Add at least one person. Their photos and names are used in the memory activity and on the contact cards, and the app speaks the family word you choose, not the English one.",
+      "addAnother": "Add another person",
+      "name": "Their name",
+      "kinshipTerm": "What the person you care for calls them",
+      "kinshipHint": "Choose the family word used at home. This is the word the app will speak.",
+      "relationship": "Relationship in English",
+      "relationshipHint": "For your own reference, so the list is easy to read.",
+      "phone": "Phone number",
+      "phoneHint": "Optional. Adds a one-tap call button to their card.",
+      "isEmergency": "Call this person first in an emergency",
+      "photo": "Their photo",
+      "voiceNote": "A short voice note from them",
+      "voiceNoteHint": "Optional, and the single most valuable thing on this screen. A familiar voice saying a familiar sentence works better than anything the app can generate.",
+      "record": "Start recording",
+      "stopRecording": "Stop",
+      "playback": "Play it back",
+      "reRecord": "Record it again",
+      "micDenied": "The browser did not give permission to use the microphone. You can add a voice note later from settings.",
+      "atLeastOne": "Add at least one person before continuing."
+    },
+
+    "music": {
+      "title": "Music they love",
+      "intro": "Music from a person's teens and twenties is remembered long after much else has gone. Adding a few songs now is worth more later than almost anything else on these screens.",
+      "encouraged": "Optional, but this is the one we would not skip.",
+      "upload": "Add a song from this device",
+      "record": "Record something instead",
+      "trackTitle": "What is this one called?",
+      "empty": "Nothing added yet."
+    },
+
+    "routine": {
+      "title": "The shape of their day",
+      "intro": "These become spoken reminders on the tablet. Add only the ones that are real; an ignored reminder teaches the person to ignore all of them.",
+      "medication": "Medicine times",
+      "meals": "Meal times",
+      "sleep": "Sleep",
+      "wakeTime": "Usually wakes",
+      "sleepTime": "Usually sleeps",
+      "addTime": "Add a time",
+      "label": "What should it say?",
+      "labelHint": "Plain and short. \"Time for the blue tablet.\"",
+      "days": "Which days?",
+      "daysAll": "Every day",
+      "kioskNote": "Reminders only sound while the tablet is awake and this app is on screen. Keep it plugged in and open on its stand."
+    }
+  },
+
+  "consent": {
+    "title": "Permission to use this information",
+    "intro": "Indian law asks us to explain what we collect, why, and to get permission from a guardian before we start. Nothing below is switched on until you say so, and you can withdraw any of it later just as easily.",
+    "noticeVersionLabel": "Notice version",
+
+    "categories": {
+      "gameplay": {
+        "name": "How they play",
+        "purpose": "Which activities were opened, how long each answer took, how many hints were used, and whether the answer was right. This is what lets the app show a change against how the same person did last month. Without it the app has nothing to show you and cannot adjust difficulty.",
+        "requiredNote": "This one is required. The app does nothing useful without it."
+      },
+      "photos": {
+        "name": "Photographs",
+        "purpose": "The photo of the person you care for, and the family photos you added. Stored privately, never shown to anyone outside this account, and never used to train anything.",
+        "offNote": "If this is off: photos already added are deleted, contact cards show names only, and the face-and-name activity is switched off."
+      },
+      "audio": {
+        "name": "Voice recordings",
+        "purpose": "Family voice notes and any music you recorded. Played back on the tablet only. Never sent anywhere else.",
+        "offNote": "If this is off: recordings already added are deleted and the app falls back to its own generated voice."
+      },
+      "analytics": {
+        "name": "Anonymous usage counts",
+        "purpose": "Counts of how often features are opened, with no names, no photographs and no health information attached. Helps us find broken screens.",
+        "offNote": "If this is off: nothing changes for you. The app works exactly the same."
+      }
+    },
+
+    "toggleOn": "Allowed",
+    "toggleOff": "Not allowed",
+
+    "guardian": {
+      "heading": "About you",
+      "relationship": "Your relationship to them",
+      "relationshipHint": "For example: daughter, son, spouse, nephew, paid carer.",
+      "attestation": "I am this person's lawful guardian, or I am acting with their authority, and I am giving this permission on their behalf.",
+      "attestationRequired": "This box has to be ticked before we can continue."
+    },
+
+    "residency": "This information is stored on servers in India.",
+    "submit": "Give permission and finish",
+    "storedAt": "Permission recorded on {{date}}."
+  },
+
+  "settings": {
+    "title": "Settings",
+    "consent": {
+      "heading": "Permission and data",
+      "current": "What you have allowed",
+      "grantedOn": "Given on {{date}}",
+      "change": "Change what is allowed",
+      "history": "Every change is kept as its own record, so there is always a history of what was agreed and when.",
+      "withdraw": "Withdraw permission and delete everything",
+      "withdrawExplain": "This removes the person's profile, every photograph, every recording, and every record of how they played. It cannot be undone and there is no copy kept.",
+      "withdrawConfirmTitle": "Delete everything for {{name}}?",
+      "withdrawConfirmBody": "This deletes their profile, photographs, recordings, reminders and their whole history of activity. It cannot be undone.",
+      "withdrawTypeToConfirm": "Type their name to confirm",
+      "withdrawConfirmAction": "Delete everything",
+      "withdrawDone": "Deleted. Nothing about that person remains on our servers.",
+      "withdrawFailed": "The deletion did not complete. Nothing has been removed. Try again, and if it keeps failing, contact us."
+    }
+  }
+}

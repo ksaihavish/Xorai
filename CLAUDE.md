@@ -2,7 +2,7 @@
 
 **Read this file, not the repo.** It exists so no task starts with a filesystem scan. If the tree or a core contract changes, update this file in the same commit (`docs/rules.md` §1.5).
 
-**Current phase:** Phase 1 complete — Next: Phase 2 (Supabase — schema, RLS, auth, consent).
+**Current phase:** Phase 2 complete — Next: Phase 3 (Offline layer — Dexie state stores, outbox, sync engine).
 
 ---
 
@@ -29,7 +29,7 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 | Backend | `@supabase/supabase-js` v2 | Postgres + RLS + Edge Functions, Mumbai region |
 | Routing | react-router-dom v7 | |
 | Charts | Recharts | Caregiver mode only |
-| i18n | react-i18next + i18next | All audio pre-generated at build time. No runtime TTS |
+| i18n | react-i18next + i18next | `src/core/i18n/`, bundles in `i18n/*.json`, statically imported. No runtime TTS |
 | Dates | date-fns | Not moment, not dayjs |
 | IDs | uuid v7 (`uuid` v13) | `client_event_id` on every telemetry row |
 | Validation | zod | Anything crossing the network or coming out of Dexie |
@@ -48,11 +48,12 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 | `CLAUDE.md` | This file — the master index |
 | `memory.md` | Phase-by-phase progress tracker, updated at the end of every phase |
 | `docs/` | `prd.md`, `architecture.md`, `design.md`, `rules.md`, `phases.md`, `buildbook.md`, `audit.md`. Source of truth; excluded from the banned-string grep |
+| `i18n/` | `en.json` — every user-facing string in both modes. Phase 5 adds the other seven languages. **In** the banned-string grep |
 | `public/audio/` | Pre-generated speech, one folder per language, precached |
 | `public/audio/drums/` | Dhol / gogona / pepa samples for Dhol Bator, pre-decoded at app start |
 | `public/assets/cultural/` | The Xorai Milan deck — square WebP, ≤120 KB each |
 | `public/fonts/` | Self-hosted woff2 subsets + `fonts.css`. Noto Sans (latin, latin-ext, devanagari), Noto Sans Bengali (bengali), Inter (latin, latin-ext). Weights 400/600 only, **no italic face**. Meetei Mayek lands in Phase 9 |
-| `supabase/migrations/` | Numbered, forward-only `.sql`. Never edited after being applied |
+| `supabase/migrations/` | `0001_init.sql` (every table, indexes, `client_event_id` UNIQUE), `0002_rls.sql` (RLS on every table, storage buckets, the write bans). Forward-only; never edited after being applied |
 | `supabase/functions/` | Edge Functions — `nightly-rollup`, `export-pdf`. Service role; the client never writes derived tables |
 | `scripts/` | `generate-audio.ts`, `build-asset-pack.ts`, `seed-telemetry.ts` |
 | `src/main.tsx` | Mount point. Guards on `#root` rather than asserting |
@@ -66,14 +67,15 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 | `src/patient/assist/` | Reminders, contact cards, SOS, music, the always-available orientation card |
 | `src/caregiver/` | **Caregiver mode.** Different design system. May not import from `src/patient/**` |
 | `src/caregiver/AppShell.tsx` | `CaregiverAppShell`, `CaregiverSection` (hairline bands, not cards), `CaregiverFlagCard` (the only carded element in the mode) |
-| `src/caregiver/onboarding/` | Profile, family, music, routine, DPDP consent |
+| `src/caregiver/onboarding/` | `OnboardingFlow` (6 steps, resumable), `steps/Step1..Step6`, `api.ts` (all caregiver reads/writes + storage), `schema.ts` (zod), `VoiceNoteRecorder` |
+| `src/caregiver/auth/` | `AuthProvider`, `RequireAuth`, `SignIn`, `SignUp`, `ResetPassword`, `api.ts`, and `Form.tsx` — caregiver form primitives that belong in `src/ui/` |
 | `src/caregiver/dashboard/` | Trends, compliance calendar, flag cards, clock replay, PDF export |
-| `src/caregiver/settings/` | |
+| `src/caregiver/settings/` | `ConsentSettings` — the DPDP withdraw-and-delete flow |
 | `src/core/db/` | `dexie.ts`, `outbox.ts`, `sync-engine.ts` |
-| `src/core/supabase/` | `client.ts`, generated `types.ts`, `queries/` |
+| `src/core/supabase/` | `client.ts` — **the only client in the app**. `types.ts` is generated and still missing; see below |
 | `src/core/telemetry/` | `types.ts` (the contract, written), plus `emit.ts` and `clock.ts` in Phase 4 |
 | `src/core/audio/` | `context.ts`, `scheduler.ts`, `speak.ts` |
-| `src/core/i18n/` | `t()` wiring and the language packs |
+| `src/core/i18n/` | `index.ts` (i18next init), `languages.ts` (the eight codes + endonyms) |
 | `src/core/difficulty/` | `staircase.ts`, `spaced-retrieval.ts` |
 | `src/ui/` | `cn.ts`, `PatientButton`, `PatientCard`, `Prompt`, `ReplayAudioButton`. Patient primitives written to design.md 5, **not** shadcn defaults. shadcn copies land here too when a phase needs one |
 | `src/styles/tokens.css` | The three `@tailwind` directives, then every token from design.md 2 plus the `[data-mode="caregiver"]` overrides |
@@ -90,6 +92,19 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 `src/ui/cn.ts` — **tailwind-merge is extended with the patient font-size scale.** It resolves `text-*` against its own idea of a size, so `text-prompt` was classified as a colour and silently dropped whenever a colour followed it, collapsing 40 px type to the 16 px browser default. Any new named size added to `tailwind.config.ts` must also be added to the `font-size` class group here or it will vanish at runtime with no error.
 
 **Design-system contracts that are enforced nowhere but must hold:** every interactive element has a visible border *and* a fill at rest; no icon-only buttons; no scale transform on press; focus is 4 px `--focus`, never brass; `--indigo` never distinguishes two options from each other in patient mode.
+
+`supabase/migrations/0002_rls.sql` — RLS on every table, plus two things RLS cannot express:
+- **`consents` is append-only by column grant.** `UPDATE` is revoked on every column but `withdrawn_at`, because "you may withdraw but you may not rewrite what was agreed" is column-level, not row-level. `tests/rls.test.ts` asserts it.
+- **`session_summaries`, `baselines` and `flags` have a SELECT policy and nothing else**, plus a blanket `REVOKE`. Only `flags.acknowledged_at` is grantable, so a caregiver can dismiss a flag but not author or re-level one.
+
+**Regenerating `src/core/supabase/types.ts`** — required after every migration (`rules.md` §5), and it is hand-edited by nobody:
+
+```
+npx supabase login
+npx supabase gen types typescript --project-id <your-project-ref> --schema public > src/core/supabase/types.ts
+```
+
+Until it exists, `client.ts` is generically typed and every read is validated by the zod schemas in `src/caregiver/onboarding/schema.ts` instead.
 
 ---
 

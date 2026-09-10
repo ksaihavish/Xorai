@@ -1,14 +1,26 @@
 import { useState } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+// Side-effect import: initialises i18next before any component calls t().
+// It lives here rather than in main.tsx because main.tsx was outside this
+// phase's touch list; it belongs next to the other providers.
+import '@/core/i18n'
 import { CaregiverAppShell, CaregiverFlagCard, CaregiverSection } from '@/caregiver/AppShell'
+import { AuthProvider } from '@/caregiver/auth/AuthProvider'
+import { RequireAuth } from '@/caregiver/auth/RequireAuth'
+import { NewPassword, ResetPassword } from '@/caregiver/auth/ResetPassword'
+import { SignIn } from '@/caregiver/auth/SignIn'
+import { SignUp } from '@/caregiver/auth/SignUp'
+import { OnboardingFlow } from '@/caregiver/onboarding/OnboardingFlow'
+import { ConsentSettings } from '@/caregiver/settings/ConsentSettings'
 import { PatientShell } from '@/patient/shell/PatientShell'
 import { PatientButton } from '@/ui/PatientButton'
 import { PatientCard } from '@/ui/PatientCard'
 import { Prompt } from '@/ui/Prompt'
 import { ReplayAudioButton } from '@/ui/ReplayAudioButton'
 
-// Both mode routes are deliberately blank. Phase 1 owns the design system, which
-// /demo below exercises; the real screens arrive with their phases.
+// Patient mode is deliberately NOT wrapped in RequireAuth. architecture.md 3:
+// the patient never authenticates. The device is bound after the caregiver signs
+// in, and entering patient mode is tapping a large photo.
 function PatientRoute() {
   return <div data-route="patient" />
 }
@@ -129,11 +141,49 @@ const PLACEHOLDER_PORTRAIT =
   )
 
 const router = createBrowserRouter([
+  // Patient mode. No guard, by design.
   { path: '/p', element: <PatientRoute /> },
+
+  // Public caregiver surfaces: the only routes reachable without a session.
+  { path: '/auth/sign-in', element: <SignIn /> },
+  { path: '/auth/sign-up', element: <SignUp /> },
+  { path: '/auth/reset', element: <ResetPassword /> },
+  { path: '/auth/new-password', element: <NewPassword /> },
+
+  // Design harness.
   { path: '/demo', element: <DemoRoute /> },
-  { path: '/', element: <CaregiverRoute /> },
+
+  // Guarded caregiver surfaces.
+  {
+    path: '/onboarding',
+    element: (
+      <RequireAuth>
+        <OnboardingFlow />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/settings',
+    element: (
+      <RequireAuth>
+        <ConsentSettings />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/',
+    element: (
+      <RequireAuth>
+        <CaregiverRoute />
+      </RequireAuth>
+    ),
+  },
 ])
 
 export function AppRouter() {
-  return <RouterProvider router={router} />
+  return (
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
+  )
 }
