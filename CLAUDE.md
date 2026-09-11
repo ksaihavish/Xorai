@@ -53,7 +53,7 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 | `public/audio/drums/` | **Synthesized placeholders** + `SOURCE.md`. Owner 3 replaces them |
 | `public/assets/cultural/` | The Xorai Milan deck — square WebP, ≤120 KB each |
 | `public/fonts/` | Self-hosted woff2 subsets + `fonts.css`. Noto Sans (latin, latin-ext, devanagari), Noto Sans Bengali (bengali), Inter (latin, latin-ext). Weights 400/600 only, **no italic face**. Meetei Mayek lands in Phase 9 |
-| `supabase/migrations/` | `0001_init.sql` (every table, indexes, `client_event_id` UNIQUE), `0002_rls.sql` (RLS on every table, storage buckets, the write bans). Forward-only; never edited after being applied |
+| `supabase/migrations/` | `0001_init.sql` (every table, indexes, `client_event_id` UNIQUE), `0002_rls.sql` (RLS on every table, storage buckets, the write bans), `0004_attempt_features.sql` (`attempts.features` jsonb for derived latency measures). Forward-only; never edited after being applied |
 | `supabase/functions/` | Edge Functions — `nightly-rollup`, `export-pdf`. Service role; the client never writes derived tables |
 | `scripts/` | `generate-audio.ts`, `build-asset-pack.ts`, `seed-telemetry.ts` |
 | `src/main.tsx` | Mount point. Guards on `#root` rather than asserting |
@@ -66,6 +66,9 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 | `src/patient/session/` | `SessionRunner` (phases + game selection + the 15-min cap), `GameHost` (builds `GameContext`), `store.ts` (zustand), `CloseScreen` (the bamboo grove) |
 | `src/patient/games/dhol-bator/` | `DholBatorGame`, `DholHead`, `patterns.ts` |
 | `src/patient/games/aponjon/` | `AponjonGame`, `kinship.ts` (the NER kinship structure), `demoFamily.ts` (fixture) |
+| `src/patient/games/xorai-milan/` | `XoraiMilanGame`, `deck.ts` (era weighting + grid caps) |
+| `src/patient/games/ghorir-chobi/` | `GhorirChobiGame`, `shapes.tsx` (clock + japi / root-bridge / Naga border) |
+| `src/core/trace/` | `capture.ts` (the pointer ladder + latency features), `replay.tsx` (**shared with the Phase 13 dashboard**) |
 | `src/patient/orientation/` | `OrientationGame` (four questions, errorless), `questions.ts` (pure builder), `SeasonMark` (four line drawings) |
 | `src/patient/assist/` | Reminders, contact cards, SOS, music, the always-available orientation card |
 | `src/caregiver/` | **Caregiver mode.** Different design system. May not import from `src/patient/**` |
@@ -82,7 +85,7 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 | `src/core/difficulty/` | `spaced-retrieval.ts`. `staircase.ts` arrives in Phase 10 |
 | `src/ui/` | `cn.ts`, `PatientButton`, `PatientCard`, `Prompt`, `ReplayAudioButton`. Patient primitives written to design.md 5, **not** shadcn defaults. shadcn copies land here too when a phase needs one |
 | `src/styles/tokens.css` | The three `@tailwind` directives, then every token from design.md 2 plus the `[data-mode="caregiver"]` overrides |
-| `tests/` | `rls.test.ts`, `sync.test.ts`, `clock.test.ts` — none of these may be deleted or skipped |
+| `tests/` | `rls.test.ts`, `sync.test.ts`, `clock.test.ts`, `rhythm.test.ts`, `aponjon.test.ts`, `milan.test.ts` — none of these may be deleted or skipped |
 
 ---
 
@@ -111,6 +114,14 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 **Rhythm timing lives entirely on the audio clock.** Beats are scheduled on `audioCtx.currentTime`, taps are read from `audioCtx.currentTime` in `pointerdown`, and neither ever touches `performance.now()`. Scheduling precision was measured through an `OfflineAudioContext` render: five notes at 600/300/300/600 ms came back at exactly 600/300/300/600, max onset error **0.271 ms** and constant, so it cancels in the differences.
 
 **A suspended AudioContext is the trap.** Its `currentTime` does not advance, so (a) `await ctx.resume()` can stay pending forever, (b) playback never reports finishing, and (c) every tap reads the same frozen value and produces tidy, entirely fictional asynchronies. All three are guarded: `resumeWithTimeout`, a playback watchdog, and a `clockRunning` check that writes EMPTY timing arrays and `completed: false` rather than fabrications.
+
+**Stroke capture uses ONE branch, never both.** `pointerrawupdate` alone where it exists; otherwise `pointermove` WITH `getCoalescedEvents()`. Calling `getCoalescedEvents()` on a `pointerrawupdate` returns only that event, so the combination captures FEWER points than the plain fallback — and it fails silently, because the trace still looks like a clock. `capture.ts` picks at subscribe time and records which branch it took in `features.raw_capture`.
+
+**The clock is never scored.** No shape recognition, no accuracy, and `attempts.correct` is written as NULL for this game rather than false. Storing a judgement is what would make this a screening instrument, which `prd.md` §2 says we never build. `tests/milan.test.ts` asserts no feature key contains score/accuracy/correct/shape/quality.
+
+**Xorai Milan: matched pairs stay face up with a brass frame.** An emptying board is a record of what is gone; a filling one is a record of what was remembered. Errorless hint re-reveals a seen card after 3 consecutive non-matches. Deck is weighted 60/40 vintage everyday objects over contemporary landmarks.
+
+`scripts/build-asset-pack.ts` **refuses any CSV row missing `licence` or `source_url`.** It fails rather than warns to enforce strict asset provenance for submission. Requires `sharp` (build-time only, needs approval) for WebP image conversion.
 
 `src/core/telemetry/emit.ts` and `src/core/db/outbox.ts` — **every emit and queue function returns `void`, never a Promise.** That is the enforcement mechanism for "the network is never in the interaction path": a function returning nothing cannot be awaited in a `pointerdown` handler.
 

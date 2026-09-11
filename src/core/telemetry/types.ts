@@ -67,6 +67,11 @@ export interface AttemptEvent {
   touch_x: number | null
   touch_y: number | null
   target_radius_px: number | null
+  /**
+   * Game-specific derived measures. Ghorir Chobi's latency features live here
+   * (migration 0004). Latency only — never a score, never a shape judgement.
+   */
+  features: Record<string, number | null> | null
 }
 
 /** One row of `strokes`. ghorir_chobi only. */
@@ -192,8 +197,8 @@ export interface SessionClock {
  */
 export type EmittedAttempt = Omit<
   AttemptEvent,
-  'client_event_id' | 'session_id' | 'patient_id'
->
+  'client_event_id' | 'session_id' | 'patient_id' | 'features'
+> & { features?: Record<string, number | null> | null }
 
 /** Same three identifiers filled in by GameHost. Dhol Bator only. */
 export type EmittedRhythmTrial = Omit<

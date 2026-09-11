@@ -80,6 +80,7 @@ export const attemptEventSchema = z.object({
   touch_x: z.number().nullable(),
   touch_y: z.number().nullable(),
   target_radius_px: z.number().nullable(),
+  features: z.record(z.string(), z.number().nullable()).nullable(),
 })
 
 export const strokePointSchema = z.object({

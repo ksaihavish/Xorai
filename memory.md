@@ -2,9 +2,9 @@
 
 The agent updates this at the end of every phase. Humans read the top three lines.
 
-**Current phase:** Block H — Dhol Bator & Aponjon (Phases 7 & 8) (completed)
+**Current phase:** Block I — Xorai Milan & Ghorir Chobi (Phases 9 & 14) (completed)
 **Last file worked on:** `memory.md`
-**Next action:** Phase 5 — Voice & language pipeline (Block F) or Phase 9 — Ghorir Chobi (Block I in `docs/buildbook.md`)
+**Next action:** Phase 5 — Voice & language pipeline (Block F in `docs/buildbook.md`) or Phase 6 — Assistance layer (Block G in `docs/buildbook.md`)
 **Last updated:** 2026-09-11
 
 ---
@@ -22,12 +22,12 @@ The agent updates this at the end of every phase. Humans read the top three line
 | 6 | Assistance layer | not started | ☐ reminder fires with audio offline; kinship terms spoken correctly | — |
 | 7 | Dhol Bator | done | ☑ asynchronies in tens of ms, not hundreds; rhythm.test.ts passing | `6aa4bef` |
 | 8 | Aponjon | done | ☑ retrieval intervals advance, drop back, and survive a restart; aponjon.test.ts passing | `6aa4bef` |
-| 9 | Ghorir Chobi | not started | ☐ point count >> frame count; replay shows pauses in the right places | — |
+| 9 | Ghorir Chobi | done | ☑ point count >> frame count; replay shows pauses in the right places | — |
 | 10 | Adaptive difficulty | not started | ☐ level moves exactly one step, offline, and survives a reload | — |
 | 11 | Seed telemetry | not started | ☐ 60 days x 3 patients; index performance checked at volume | — |
 | 12 | Analysis pipeline | not started | ☐ flag fires; care_event suppresses it; low effort routes to mood check-in | — |
 | 13 | Caregiver dashboard | not started | ☐ PDF exports with disclaimer and no banned string | — |
-| 14 | Xorai Milan | not started | ☐ revisit rate computable and plausible | — |
+| 14 | Xorai Milan | done | ☑ revisit rate computable and plausible; vintage weighting 60/40 | — |
 | 15 | Harden, languages, demo | not started | ☐ four links live; all four test suites green | — |
 
 Status values: `not started` · `in progress` · `blocked` · `done`
@@ -35,6 +35,35 @@ Status values: `not started` · `in progress` · `blocked` · `done`
 ---
 
 ## Completed phases log
+
+### Block I — Xorai Milan & Ghorir Chobi (Phases 9 & 14)
+- **Status:** done
+- **Files created:**
+  - `src/patient/games/xorai-milan/` (`XoraiMilanGame.tsx`, `deck.ts` with era weighting, grid caps, layout)
+  - `src/patient/games/ghorir-chobi/` (`GhorirChobiGame.tsx`, `shapes.tsx` with reference figures & trace shapes)
+  - `src/core/trace/` (`capture.ts` single-branch pointer capture & derived features, `replay.tsx` animated trace replay)
+  - `scripts/build-asset-pack.ts` (strict asset pack validation, WebP conversion, SQL seed emitter)
+  - `supabase/migrations/0004_attempt_features.sql` (`attempts.features` jsonb column & index)
+  - `tests/milan.test.ts` (11/11 tests: vintage 60/40 weighting, grid caps, trace features, non-scoring verification)
+- **Files modified:**
+  - `src/patient/session/SessionRunner.tsx` (registered real `ghorirChobiGame` and `xoraiMilanGame`, removed stubs)
+  - `src/core/telemetry/types.ts` (added `features` to `AttemptEvent` and `EmittedAttempt`)
+  - `src/core/telemetry/emit.ts` (handled `features` default in `emitAttempt`)
+  - `src/core/db/schemas.ts` (validated `features` in `attemptEventSchema`)
+  - `i18n/en.json` (prompt strings and translations for Ghorir Chobi and Xorai Milan)
+  - `tests/sync.test.ts` (updated attempt fixtures for `features`)
+  - `CLAUDE.md` (updated tree and stroke capture / non-scoring / deck contracts)
+  - `memory.md` (updated build state, files, notes, and log)
+- **Deferred / surprises:**
+  - `setPointerCapture` throws `InvalidPointerId` when pointer is no longer tracked; wrapped in try/catch to avoid losing entire strokes.
+  - Calling `getCoalescedEvents()` on `pointerrawupdate` returns only that event, resulting in fewer points than plain `pointermove` + coalesced. Selected single branch at subscribe time (`raw_capture` feature).
+  - Derived clock features live in `attempts.features jsonb` (migration 0004) rather than separate columns, facilitating offline dashboard replay without parsing raw strokes.
+  - The clock is strictly never scored: `attempts.correct` is NULL, never false, and features exclude any accuracy/score keys.
+  - In Xorai Milan, matched pairs stay face-up with a brass frame instead of disappearing, providing a reassuring sense of accomplishment.
+  - `scripts/build-asset-pack.ts` refuses CSV rows missing `licence` or `source_url`. Image conversion requires build-time `sharp` (needs approval).
+- **Next phase:** Phase 5 — Voice & language pipeline (Block F in `docs/buildbook.md`) or Phase 6 — Assistance layer (Block G in `docs/buildbook.md`).
+
+---
 
 ### Block H — Dhol Bator & Aponjon (Phases 7 & 8)
 - **Status:** done
@@ -204,7 +233,7 @@ Status values: `not started` · `in progress` · `blocked` · `done`
 | Area | Path | State |
 |---|---|---|
 | Master context | `CLAUDE.md` | written |
-| Telemetry contract | `src/core/telemetry/types.ts` | written — types only |
+| Telemetry contract | `src/core/telemetry/types.ts` | written — types + `features` jsonb |
 | Boundary lint rule | `eslint.config.js` | written and verified |
 | Design tokens | `src/styles/tokens.css` | written |
 | Tailwind theme | `tailwind.config.ts` | written |
@@ -216,7 +245,7 @@ Status values: `not started` · `in progress` · `blocked` · `done`
 | Session runner | `src/patient/session/` | `SessionRunner`, `GameHost`, `store.ts`, `CloseScreen` |
 | Clock + emit | `src/core/telemetry/` | `clock.ts`, `emit.ts`, `types.ts` |
 | Orientation | `src/patient/orientation/` | `OrientationGame`, `questions.ts`, `SeasonMark` |
-| Games | `src/patient/games/{aponjon,dhol-bator,xorai-milan,ghorir-chobi}/` | — |
+| Games | `src/patient/games/{aponjon,dhol-bator,xorai-milan,ghorir-chobi}/` | all four games written (`DholBatorGame`, `AponjonGame`, `GhorirChobiGame`, `XoraiMilanGame`) |
 | Assistance | `src/patient/assist/` | — |
 | Onboarding | `src/caregiver/onboarding/` | 6 steps + api + zod schemas |
 | Dashboard | `src/caregiver/dashboard/` | — |
@@ -224,16 +253,16 @@ Status values: `not started` · `in progress` · `blocked` · `done`
 | Service worker | `src/sw.ts` | precache + runtime caches |
 | Sync indicator | `src/caregiver/dashboard/SyncStatus.tsx` | caregiver mode only |
 | PWA icons | `public/icons/` | **placeholders, replace before submission** |
-| Telemetry | `src/core/telemetry/` | types only |
+| Telemetry | `src/core/telemetry/` | types + clock + emit (features support) |
 | Supabase client | `src/core/supabase/client.ts` | written; `types.ts` not yet generated |
 | Auth | `src/caregiver/auth/` | email+password, reset, phone OTP behind the flag |
 | Consent + withdrawal | `src/caregiver/settings/ConsentSettings.tsx` | written |
-| i18n | `src/core/i18n/` + `i18n/en.json` | scaffold built this phase |
-| Audio | `src/core/audio/` | — |
-| Trace | `src/core/trace/` | — |
-| Migrations | `supabase/migrations/` | `0001_init.sql`, `0002_rls.sql` — **written, not applied** |
+| i18n | `src/core/i18n/` + `i18n/en.json` | scaffold + games / orientation / sync catalog |
+| Audio | `src/core/audio/` | `context.ts`, `scheduler.ts` |
+| Trace | `src/core/trace/` | `capture.ts`, `replay.tsx` |
+| Migrations | `supabase/migrations/` | `0001_init.sql`, `0002_rls.sql`, `0004_attempt_features.sql` — **written, not applied** |
 | Edge Functions | `supabase/functions/` | — |
-| Scripts | `scripts/` | — |
+| Scripts | `scripts/` | `build-asset-pack.ts` |
 
 ---
 
@@ -259,6 +288,12 @@ Status values: `not started` · `in progress` · `blocked` · `done`
 - Pre-seeded: `difficulty_state` and `retrieval_state` do NOT use the telemetry idempotency rule. Last-write-wins on a server `updated_at`. Using `ignoreDuplicates` here loses the newer value silently.
 - Pre-seeded: reminders do not fire on a locked screen in a PWA. Kiosk mode is the v1 answer — tablet awake, app foregrounded.
 - Pre-seeded: `cv_rt` is per game_type. Pooling reaction times across games makes the headline metric measure which games were played, not the person.
+- **Phase 9: `setPointerCapture` throws** (`InvalidPointerId`) when the browser no longer tracks the pointer, and an unguarded call inside `pointerdown` aborts the handler — losing the ENTIRE stroke, silently. Now wrapped in try/catch. Pointer capture is an optimisation; never let it cost the data.
+- **Phase 9: the prompt asked for `getCoalescedEvents()` on every event, which contradicts `rules.md` 2 and would have made the trace WORSE.** Called on a `pointerrawupdate`, it returns only that one event, so the combination captures fewer points than plain `pointermove` + coalesced — and it fails silently. `capture.ts` picks one branch at subscribe time and records which in `features.raw_capture`.
+- Phase 9: derived clock features live in `attempts.features jsonb` (migration 0004), not in new numeric columns. They are recomputable from `strokes`, but the rollup should not parse thousands of points to read eight numbers, and the dashboard renders offline after strokes are pruned.
+- Phase 9: `attempts.correct` is NULL for ghorir_chobi, never false. There is no right answer to record and writing `false` would be scoring the clock by the back door.
+- Phase 14: a matched pair does NOT vanish — it stays face up with a brass frame. An emptying board is a record of what is gone; a filling one is a record of what was remembered.
+- Phase 14: `scripts/build-asset-pack.ts` REFUSES a CSV row missing `licence` or `source_url`. It fails, it does not warn. It needs `sharp` (build-time only, NOT installed, NOT in rules.md 3) — until approved it validates and emits SQL but skips conversion.
 - **Phase 7, the trap: a SUSPENDED AudioContext.** Its `currentTime` does not advance, and that breaks three separate things silently. (1) `await ctx.resume()` can stay PENDING forever when audio is blocked — it hung a probe for 45 s, and in production would freeze a game with no error, which design.md 6 forbids showing anyway. (2) Playback reports finishing by comparing `currentTime` to the last onset, so it never fires and the game sticks in the listen phase. (3) Every tap reads the SAME frozen value, producing inter-tap intervals of 0 and a tidy set of entirely fictional asynchronies. All three are now guarded — `resumeWithTimeout`, a playback watchdog, and a `clockRunning` check that writes EMPTY arrays and `completed: false` rather than fabrications. **Never let a frozen clock write a timing row.**
 - Phase 7: `tests/rhythm.test.ts` caught a flaw in my own game content — span 3's pattern was `[600, 600]`, isochronous, so a patient could reproduce it by tapping at a steady rate without remembering anything. Every pattern with 2+ intervals must now vary.
 - Phase 7: game selection is working when it looks broken. A session that ran the two stubs instead of the two real games was the rotation correctly avoiding the pair played last session. Clear `games_last_played` / `games_last_pair` in `sync_meta` to force a specific pair while testing.

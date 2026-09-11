@@ -6,7 +6,6 @@ import { createSessionClock } from '@/core/telemetry/clock'
 import { emitSession } from '@/core/telemetry/emit'
 import type {
   GameSummary,
-  GameType,
   LocalFamilyMember,
   LocalPatient,
   SessionClock,
@@ -16,6 +15,8 @@ import type {
 import { aponjonGame } from '@/patient/games/aponjon/AponjonGame'
 import { DEMO_FAMILY } from '@/patient/games/aponjon/demoFamily'
 import { dholBatorGame } from '@/patient/games/dhol-bator/DholBatorGame'
+import { ghorirChobiGame } from '@/patient/games/ghorir-chobi/GhorirChobiGame'
+import { xoraiMilanGame } from '@/patient/games/xorai-milan/XoraiMilanGame'
 import { orientationGame } from '@/patient/orientation/OrientationGame'
 import { CloseScreen } from '@/patient/session/CloseScreen'
 import { GameHost, createSpeakStub, type Game } from '@/patient/session/GameHost'
@@ -41,17 +42,12 @@ const LAST_PAIR_KEY = 'games_last_pair'
 
 const SEVERITY_RANK: Record<Severity, number> = { mild: 0, moderate: 1, severe: 2 }
 
-/**
- * Everything except orientation is a stub until Phases 7-9, and each is
- * deliberately a real entry in this table rather than a hole in the switch. The
- * selection rules below are the part worth getting right now; swapping a stub
- * for a finished game later should not touch this file.
- */
+/** All four games, real. The selection rules below choose two of them. */
 const GAME_REGISTRY: Game[] = [
   dholBatorGame,
   aponjonGame,
-  makeStub('ghorir_chobi', ['perceptual_motor', 'executive'], 'moderate'),
-  makeStub('xorai_milan', ['attention', 'memory', 'perceptual_motor'], 'severe'),
+  ghorirChobiGame,
+  xoraiMilanGame,
 ]
 
 /**
@@ -359,45 +355,3 @@ function parseList(value: unknown): string[] {
   }
 }
 
-/**
- * A placeholder game that completes immediately with an empty summary.
- *
- * It emits no attempt rows on purpose. A stub that wrote telemetry would put
- * fabricated trials into the same table the clinical claim is computed from, and
- * they would be indistinguishable from real ones by Phase 12.
- */
-function makeStub(id: GameType, domains: Game['domains'], minSeverity: Severity): Game {
-  return {
-    id,
-    domains,
-    minSeverity,
-    Component: ({ ctx }) => <StubGame ctx={ctx} id={id} />,
-  }
-}
-
-function StubGame({ ctx, id }: { ctx: { onComplete: (summary: GameSummary) => void }; id: GameType }) {
-  const { t } = useTranslation()
-
-  useEffect(() => {
-    const timer = window.setTimeout(
-      () =>
-        ctx.onComplete({
-          game_type: id,
-          domain: 'attention',
-          difficulty_level: 1,
-          trials_presented: 0,
-          trials_completed: 0,
-          mean_rt_ms: null,
-          sd_rt_ms: null,
-          cv_rt: null,
-          accuracy_raw: null,
-          accuracy_hint_adjusted: null,
-          hint_rate: null,
-        }),
-      1_200,
-    )
-    return () => window.clearTimeout(timer)
-  }, [ctx, id])
-
-  return <Prompt>{t('session.stub.unavailable')}</Prompt>
-}

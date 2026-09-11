@@ -81,6 +81,7 @@ function attempt(trialIndex: number) {
     touch_x: 1.5,
     touch_y: -2.5,
     target_radius_px: 60,
+    features: null,
   }
 }
 

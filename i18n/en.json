@@ -320,5 +320,26 @@
     "grandson": "Grandson",
     "granddaughter": "Granddaughter",
     "other": "Family"
+  },
+  "milan": {
+    "cardBack": "A card, face down"
+  },
+  "deck": {
+    "lantern": "A hurricane lantern",
+    "radio": "A transistor radio",
+    "xorai": "A xorai, the brass offering bowl",
+    "japi": "A japi, the bamboo sunhat",
+    "sewing": "A treadle sewing machine",
+    "dheki": "A dheki, for husking rice",
+    "rhino": "Kaziranga, the one-horned rhino",
+    "hornbill": "A hornbill",
+    "tea": "A tea leaf",
+    "orchid": "A foxtail orchid"
+  },
+  "ghorir": {
+    "command": "Draw a clock, put in all the numbers, and set the hands to ten past eleven.",
+    "copy": "Draw this clock, just as you see it here.",
+    "trace": "Follow the line with your finger.",
+    "done": "I am done"
   }
 }

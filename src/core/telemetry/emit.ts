@@ -36,15 +36,18 @@ type Timing = {
 
 export type AttemptInput = Omit<
   AttemptEvent,
-  'client_event_id' | 'presented_at_ms' | 'first_touch_at_ms' | 'responded_at_ms'
+  'client_event_id' | 'presented_at_ms' | 'first_touch_at_ms' | 'responded_at_ms' | 'features'
 > &
-  Timing
+  Timing & { features?: Record<string, number | null> | null }
 
 export function emitAttempt(clock: SessionClock, input: AttemptInput): void {
-  const { presented_at_ms, first_touch_at_ms, responded_at_ms, ...rest } = input
+  const { presented_at_ms, first_touch_at_ms, responded_at_ms, features, ...rest } = input
 
   queueAttempt({
     ...rest,
+    // Defaulted here so no game has to remember. zod's .nullable() rejects
+    // undefined, and a row that fails to parse is quarantined and never syncs.
+    features: features ?? null,
     presented_at_ms: presented_at_ms ?? clock.now(),
     // Explicitly null rather than undefined: zod's .nullable() rejects
     // undefined, and a row that fails to parse is quarantined and never synced.
