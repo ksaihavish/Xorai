@@ -1,5 +1,10 @@
 /**
- * The kinship table. architecture.md 7.1.
+ * The kinship table. architecture.md 7.1 and 10.
+ *
+ * Lives in src/core/ because BOTH modes need it: patient mode speaks the term,
+ * caregiver onboarding offers it as a picker. rules.md 2 forbids either mode
+ * importing from the other, and the boundary lint rule caught this when it was
+ * briefly in src/patient/games/aponjon/ — correctly.
  *
  * ─── Why this file is not a list of translated words ───
  *

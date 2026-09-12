@@ -6,8 +6,10 @@ import {
   FormError,
   PrimaryButton,
   SecondaryButton,
+  Select,
   TextInput,
 } from '@/caregiver/auth/Form'
+import { KINSHIP_TABLE } from '@/core/i18n/kinship'
 import type { StepProps } from '@/caregiver/onboarding/OnboardingFlow'
 import { VoiceNoteRecorder } from '@/caregiver/onboarding/VoiceNoteRecorder'
 import {
@@ -158,11 +160,18 @@ export function Step3Family({ patient, onNext, onBack }: StepProps) {
           label={t('onboarding.family.kinshipTerm')}
           hint={t('onboarding.family.kinshipHint')}
         >
-          <TextInput
+          <Select
             id="fm-kinship"
             value={kinshipTerm}
             onChange={(e) => setKinshipTerm(e.target.value)}
-          />
+          >
+            <option value="">&#8212;</option>
+            {KINSHIP_TABLE.map((entry) => (
+              <option key={entry.key} value={entry.key}>
+                {t(entry.key, { defaultValue: entry.gloss })}
+              </option>
+            ))}
+          </Select>
         </Field>
 
         <Field

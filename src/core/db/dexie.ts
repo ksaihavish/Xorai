@@ -90,7 +90,15 @@ export type LocalDifficultyState = {
   patient_id: string
   game_type: GameType
   level: number
-  window: unknown
+  /** The rolling window of the last 10 trial outcomes. */
+  window: { correct: boolean; hinted: boolean }[]
+  /**
+   * Enforces "never more than one level per session, in either direction"
+   * (architecture.md 9). Not an index, so no version bump is needed — a row
+   * written by an older build simply reads this as undefined and is treated as
+   * never having moved.
+   */
+  last_session_id: string | null
   updated_at: number
 }
 

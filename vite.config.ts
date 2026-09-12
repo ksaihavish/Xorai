@@ -31,14 +31,30 @@ export default defineConfig({
         // Precache: app shell, fonts, i18n bundles, the base cultural pack, and
         // the DEFAULT language's audio only. Other languages are runtime-cached
         // in sw.ts — precaching seven of them is several times the budget above.
+        /**
+         * architecture.md 5.3 and 10: precache the SELECTED language only and
+         * runtime-cache the rest. Seven languages of pre-generated speech is
+         * several times the budget, and a precache over the device quota fails
+         * SILENTLY at install — the worker registers, the files are absent, and
+         * the first session runs mute with no error anywhere.
+         *
+         * Fonts follow the same rule. Latin is always needed (the caregiver UI
+         * is Latin whatever the patient's language), so it is precached; the
+         * Bengali, Devanagari and Meetei Mayek subsets are runtime-cached on
+         * first use by the sw.ts rule for /fonts/. unicode-range already means a
+         * browser only DOWNLOADS the script it renders — this stops the service
+         * worker undoing that by fetching all four up front.
+         */
         globPatterns: [
           '**/*.{js,css,html,ico,png,svg,webmanifest}',
-          'fonts/**/*.woff2',
-          'i18n/**/*.json',
+          'fonts/fonts.css',
+          'fonts/noto-sans-latin-*.woff2',
+          'fonts/inter-latin-*.woff2',
+          'i18n/en.json',
           'audio/en/**/*.{mp3,wav}',
           'assets/cultural/**/*.webp',
         ],
-        globIgnores: ['audio/!(en)/**'],
+        globIgnores: ['audio/!(en)/**', 'fonts/noto-sans-{bengali,devanagari,meetei}*'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
       },
       manifest: {
@@ -128,6 +144,30 @@ function assertPrecacheBudget(): void {
   }
 
   const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`
+
+  // Printed every build, passing or failing, so the number is watched rather
+  // than discovered at 25 MB.
+  const byKind = new Map<string, number>()
+  for (const url of urls) {
+    if (!url) continue
+    const kind = url.startsWith('audio/')
+      ? 'audio'
+      : url.startsWith('fonts/')
+        ? 'fonts'
+        : url.startsWith('assets/cultural/')
+          ? 'cultural'
+          : 'shell'
+    try {
+      byKind.set(kind, (byKind.get(kind) ?? 0) + statSync(join(dist, url)).size)
+    } catch {
+      // Counted in the total below or not at all.
+    }
+  }
+  const breakdown = [...byKind.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([kind, bytes]) => `${kind} ${mb(bytes)}`)
+    .join(', ')
+
   if (total > PRECACHE_LIMIT_BYTES) {
     throw new Error(
       `Precache is ${mb(total)} across ${urls.length} files, over the ${mb(PRECACHE_LIMIT_BYTES)} ceiling in architecture.md 5.3. ` +
@@ -136,5 +176,8 @@ function assertPrecacheBudget(): void {
     )
   }
 
-  console.log(`[xorai] precache ${mb(total)} across ${urls.length} files`)
+  console.log(
+    `[xorai] precache ${mb(total)} across ${urls.length} files ` +
+      `(limit ${mb(PRECACHE_LIMIT_BYTES)}) — ${breakdown}`,
+  )
 }

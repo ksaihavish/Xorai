@@ -42,7 +42,7 @@ export default {
         touchLg: '72px',
       },
       fontFamily: {
-        sans: ['Noto Sans', 'Noto Sans Bengali', 'system-ui', 'sans-serif'],
+        sans: ['Noto Sans', 'Noto Sans Bengali', 'Noto Sans Meetei Mayek', 'system-ui', 'sans-serif'],
         ui: ['Inter', 'Noto Sans', 'system-ui', 'sans-serif'],
       },
       borderRadius: {

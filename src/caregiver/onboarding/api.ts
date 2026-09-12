@@ -325,6 +325,9 @@ export type ReminderInput = {
   label: string
   time_of_day: string
   days_of_week: number[] | null
+  /** The caregiver's recording. Preferred over generated speech, always. */
+  audio_path?: string | null
+  active?: boolean
 }
 
 /**

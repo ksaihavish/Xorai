@@ -1,4 +1,5 @@
 import { useMemo, type ReactNode } from 'react'
+import { createSpeaker } from '@/core/audio/speak'
 import { emitAttempt, emitRhythmTrial, emitStroke, type AttemptInput } from '@/core/telemetry/emit'
 import type {
   Domain,
@@ -98,22 +99,12 @@ export function GameHost({
 }
 
 /**
- * Speech, stubbed. Phase 5 replaces this with `src/core/audio/speak.ts` playing
- * a pre-generated file for the patient's language.
+ * The real speaker. Phase 5 replaced the Phase 4 stub.
  *
- * It resolves after a short delay rather than immediately, because every caller
- * is written to await it before revealing options, and a stub that resolves in
- * zero milliseconds would hide any ordering bug in that sequence until real
- * audio arrived and the bug appeared as a race in four finished games.
- *
- * No file is fetched. There is no silent asset in public/audio yet, and a 404 on
- * the patient path is a network error on a surface that must never show one.
+ * Plays `public/audio/{lang}/{key}.mp3` from the precache with zero network. A
+ * missing file logs in development and plays nothing — design.md 6 forbids any
+ * patient-facing error, including a silent one.
  */
-export function createSpeakStub(): (key: string) => Promise<void> {
-  return (key: string) => {
-    if (import.meta.env.DEV) {
-      console.info(`[speak] ${key}`)
-    }
-    return new Promise((resolve) => setTimeout(resolve, 350))
-  }
+export function createSpeakStub(language = 'en'): (key: string) => Promise<void> {
+  return createSpeaker(language)
 }

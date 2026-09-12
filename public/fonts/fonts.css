@@ -79,6 +79,27 @@
   unicode-range: U+0951-0952, U+0964-0965, U+0980-09FE, U+1CD0, U+1CD2, U+1CD5-1CD6, U+1CD8, U+1CE1, U+1CEA, U+1CED, U+1CF2, U+1CF5-1CF7, U+200C-200D, U+20B9, U+25CC, U+A8F1;
 }
 
+/* ---- Noto Sans Meetei Mayek ---- */
+/* Manipuri. Its own family: Meetei Mayek is a separate script and Noto Sans
+   proper does not carry it. The unicode-range means a device only downloads
+   this when it actually renders Manipuri text. */
+@font-face {
+  font-family: 'Noto Sans Meetei Mayek';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/noto-sans-meetei-mayek-meetei-mayek-400.woff2') format('woff2');
+  unicode-range: U+200C-200D, U+25CC, U+AAE0-AAF6, U+ABC0-ABFF;
+}
+@font-face {
+  font-family: 'Noto Sans Meetei Mayek';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/noto-sans-meetei-mayek-meetei-mayek-600.woff2') format('woff2');
+  unicode-range: U+200C-200D, U+25CC, U+AAE0-AAF6, U+ABC0-ABFF;
+}
+
 /* ---- Inter ---- */
 @font-face {
   font-family: 'Inter';

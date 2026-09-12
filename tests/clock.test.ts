@@ -1,5 +1,3 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join, relative, sep } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { createSessionClock } from '@/core/telemetry/clock'
 
@@ -9,57 +7,11 @@ import { createSessionClock } from '@/core/telemetry/clock'
  * trustworthy, and everything downstream of it is decoration.
  */
 
-// process.cwd(), not import.meta.url: under the jsdom environment import.meta
-// is served over http and fileURLToPath rejects it. Vitest runs from the repo
-// root, and the assertion below fails loudly if that ever stops being true.
-const REPO_ROOT = process.cwd()
-
 /**
- * The allowlist, printed by the test below so it can be reviewed rather than
- * trusted.
- *
- * There is exactly one legitimate `Date.now()` in the telemetry path, and it is
- * the one that produces `sessions.started_at` — the single wall-clock value in
- * the whole schema. Anything else appearing here is a regression, and the reason
- * it matters is in the header comment of clock.ts.
- *
- * Adding an entry to this list is a decision, not a fix. If a new file needs
- * wall clock, the question to answer first is whether the value it is computing
- * is a `*_ms` telemetry field. If it is, the answer is no.
+ * The Date.now() ban that used to live here now sits in invariants.test.ts,
+ * alongside the other rules.md §2 checks, so there is one place to look and one
+ * place to keep current. This file is the SessionClock's own behaviour.
  */
-const DATE_NOW_ALLOWLIST: { file: string; why: string }[] = [
-  {
-    file: 'src/core/telemetry/clock.ts',
-    why: 'sessions.started_at — the one permitted wall-clock read in the product.',
-  },
-]
-
-const SCANNED_DIRS = ['src/core/telemetry', 'src/patient']
-
-function walk(dir: string): string[] {
-  const out: string[] = []
-  let entries: string[]
-  try {
-    entries = readdirSync(dir)
-  } catch {
-    return out
-  }
-
-  for (const entry of entries) {
-    const full = join(dir, entry)
-    if (statSync(full).isDirectory()) {
-      out.push(...walk(full))
-    } else if (/\.(ts|tsx)$/.test(entry)) {
-      out.push(full)
-    }
-  }
-  return out
-}
-
-/** Repo-relative, forward slashes, so the allowlist reads the same on any OS. */
-function repoPath(absolute: string): string {
-  return relative(REPO_ROOT, absolute).split(sep).join('/')
-}
 
 describe('SessionClock', () => {
   it('produces monotonically non-decreasing offsets across 1000 calls', () => {
@@ -142,59 +94,5 @@ describe('SessionClock', () => {
     expect(converted).toBeLessThan(1050)
 
     dispose()
-  })
-})
-
-describe('Date.now() is banned in the telemetry path', () => {
-  it('appears only in the allowlist, which is printed here for review', () => {
-    const offenders: string[] = []
-    const allowlisted = new Set(DATE_NOW_ALLOWLIST.map((entry) => entry.file))
-    let scanned = 0
-
-    for (const dir of SCANNED_DIRS) {
-      for (const file of walk(join(REPO_ROOT, dir))) {
-        scanned += 1
-        const path = repoPath(file)
-        const source = readFileSync(file, 'utf8')
-
-        // Strip comments first. The header of clock.ts explains this rule at
-        // length and mentions the call by name; a grep that cannot tell an
-        // explanation from a call would force the explanation to be deleted.
-        const code = source
-          .replace(/\/\*[\s\S]*?\*\//g, '')
-          .replace(/(^|[^:])\/\/.*$/gm, '$1')
-
-        if (code.includes('Date.now()') && !allowlisted.has(path)) {
-          offenders.push(path)
-        }
-      }
-    }
-
-    // Printed every run, passing or failing. An allowlist nobody reads is an
-    // allowlist that grows.
-    console.info(
-      [
-        '',
-        `Date.now() scan: ${scanned} files under ${SCANNED_DIRS.join(', ')}`,
-        'Allowlist:',
-        ...DATE_NOW_ALLOWLIST.map((entry) => `  - ${entry.file}\n      ${entry.why}`),
-        '',
-      ].join('\n'),
-    )
-
-    expect(scanned).toBeGreaterThan(0)
-    expect(offenders).toEqual([])
-  })
-
-  it('the allowlisted file really does still contain the call it is listed for', () => {
-    // Otherwise the allowlist silently becomes a list of files that used to
-    // matter, and the next real violation gets waved through by an entry that
-    // stopped meaning anything.
-    for (const entry of DATE_NOW_ALLOWLIST) {
-      const source = readFileSync(join(REPO_ROOT, entry.file), 'utf8')
-      expect(source, `${entry.file} is allowlisted but no longer calls Date.now()`).toContain(
-        'Date.now()',
-      )
-    }
   })
 })

@@ -1,7 +1,11 @@
 /// <reference lib="webworker" />
 import { ExpirationPlugin } from 'workbox-expiration'
-import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching'
-import { registerRoute } from 'workbox-routing'
+import {
+  cleanupOutdatedCaches,
+  createHandlerBoundToURL,
+  precacheAndRoute,
+} from 'workbox-precaching'
+import { NavigationRoute, registerRoute } from 'workbox-routing'
 import { CacheFirst, NetworkOnly, StaleWhileRevalidate } from 'workbox-strategies'
 
 declare const self: ServiceWorkerGlobalScope
@@ -34,9 +38,38 @@ cleanupOutdatedCaches()
  * order, and a later, broader rule must not be able to claim them.
  */
 registerRoute(({ url }) => url.pathname.startsWith('/rest/v1/'), new NetworkOnly())
+// Registered here, before the navigation fallback below, so a Supabase call can
+// never be answered with the app shell.
 registerRoute(({ url }) => url.pathname.startsWith('/auth/v1/'), new NetworkOnly())
 registerRoute(({ url }) => url.pathname.startsWith('/realtime/v1/'), new NetworkOnly())
 registerRoute(({ url }) => url.pathname.startsWith('/functions/v1/'), new NetworkOnly())
+
+/**
+ * ─── The SPA navigation fallback, and why its absence was a real outage ───
+ *
+ * Every navigation that is not a precached file is answered with the app shell,
+ * which is the client-side router's entry point.
+ *
+ * Measured before this existed: with the server stopped, `/` loaded from the
+ * precache and `/p`, `/demo` and `/settings` all failed outright. In-app
+ * navigation hid it, because React Router never touches the network — the
+ * failure only appears on a hard load of a deep route, which is exactly what a
+ * kiosk tablet does when the OS restarts its webview, when the device reboots,
+ * or when the PWA is installed with a start_url other than `/`.
+ *
+ * That is the whole offline-first claim failing on the one device class this
+ * product is for, in a way a browser with the dev server running can never
+ * reveal. `vercel.json` has the same rewrite for the online case; this is the
+ * offline half, and the two have to agree.
+ *
+ * The denylist covers paths that must reach the network or a real file even
+ * when they look like navigations.
+ */
+registerRoute(
+  new NavigationRoute(createHandlerBoundToURL('index.html'), {
+    denylist: [/^\/rest\/v1\//, /^\/auth\/v1\//, /^\/realtime\/v1\//, /^\/functions\/v1\//],
+  }),
+)
 
 /**
  * Family photographs, from Supabase Storage. CacheFirst, 30 days, 300 entries.
@@ -84,6 +117,23 @@ registerRoute(
         maxAgeSeconds: 90 * 24 * 60 * 60,
         purgeOnQuotaError: true,
       }),
+    ],
+  }),
+)
+
+/**
+ * Font subsets beyond the precached Latin ones.
+ *
+ * Bengali, Devanagari and Meetei Mayek are fetched the first time a device
+ * actually renders that script and then kept. Precaching all four would put
+ * roughly a megabyte of glyphs on every tablet for scripts it will never show.
+ */
+registerRoute(
+  ({ url, request }) => request.destination === 'font' && url.pathname.startsWith('/fonts/'),
+  new CacheFirst({
+    cacheName: 'xorai-fonts-runtime',
+    plugins: [
+      new ExpirationPlugin({ maxEntries: 40, maxAgeSeconds: 365 * 24 * 60 * 60 }),
     ],
   }),
 )

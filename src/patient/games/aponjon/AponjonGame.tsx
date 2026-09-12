@@ -14,7 +14,7 @@ import type {
   GameSummary,
   LocalFamilyMember,
 } from '@/core/telemetry/types'
-import { isSemanticallyNear, kinshipEntry } from '@/patient/games/aponjon/kinship'
+import { isSemanticallyNear, kinshipEntry } from '@/core/i18n/kinship'
 import type { Game } from '@/patient/session/GameHost'
 import { Prompt } from '@/ui/Prompt'
 

@@ -232,6 +232,31 @@ export interface LocalFamilyMember {
   sort_order: number | null
 }
 
+/** A reminder as the patient path sees it, cached in Dexie `local_profile`. */
+export interface LocalReminder {
+  id: string
+  kind: 'medication' | 'meal' | 'routine'
+  label: string
+  /** 'HH:MM' local time. */
+  time_of_day: string
+  /** 0 = Sunday. null means every day. */
+  days_of_week: number[] | null
+  /**
+   * The caregiver's recording, already resolved to a local URL. Preferred over
+   * generated speech ALWAYS — a grandchild's actual voice saying "Aita, it's
+   * time for your medicine" is better clinically and better emotionally, and it
+   * removes the last runtime TTS dependency (design.md 9).
+   */
+  audio_url: string | null
+  active: boolean
+}
+
+export interface LocalMusicTrack {
+  id: string
+  title: string
+  audio_url: string | null
+}
+
 /**
  * The only surface a game may touch. A game that reaches directly into Dexie or
  * Supabase is wrong (rules.md 2 Boundaries).

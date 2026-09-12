@@ -1,0 +1,6 @@
+{
+  "_meta.language": "Khasi",
+  "_meta.script": "latin",
+  "_meta.translated": "false",
+  "_meta.note": "Owner 2 fills this file. Every key from en.json, same flat dot-keys, translated into Khasi. Until then i18next falls back to English for every missing key — no invented Khasi ships. tests/i18n.test.ts asserts key parity the moment this file has real keys, and that no patient-facing string says the patient was wrong."
+}

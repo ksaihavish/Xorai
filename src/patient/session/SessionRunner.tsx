@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { v7 as uuidv7 } from 'uuid'
 import { META_KEYS, db, readMeta, writeMeta } from '@/core/db/dexie'
+import { applyTrials, loadDifficulty, saveDifficulty, type DifficultyState } from '@/core/difficulty/staircase'
 import { createSessionClock } from '@/core/telemetry/clock'
 import { emitSession } from '@/core/telemetry/emit'
 import type {
@@ -112,9 +113,12 @@ export function SessionRunner({
   // Phase 6 caches the real family in Dexie local_profile at onboarding. Until
   // then Aponjon runs against the marked fixture rather than not running.
   const [family] = useState<LocalFamilyMember[]>(DEMO_FAMILY)
+  // Per-game level, read from difficulty_state. Absent rows fall back to the
+  // severity gate (mild 3 / moderate 2 / severe 1) inside loadDifficulty.
+  const [levels, setLevels] = useState<Record<string, DifficultyState>>({})
   const sessionRef = useRef<SessionRecord | null>(null)
   const summariesRef = useRef<GameSummary[]>([])
-  const speak = useMemo(() => createSpeakStub(), [])
+  const speak = useMemo(() => createSpeakStub(patient.language), [patient.language])
 
   const { begin, setPhase, setGameIndex, setProgress, end } = store
 
@@ -188,6 +192,12 @@ export function SessionRunner({
       sessionRef.current = record
       emitSession(record)
 
+      const loaded = await Promise.all(
+        selected.map((game) => loadDifficulty(patient.id, game.id, patient.severity)),
+      )
+      if (!active) return
+      setLevels(Object.fromEntries(loaded.map((state) => [state.game_type, state])))
+
       setClock(handle.clock)
       setGames(selected)
       begin({
@@ -230,6 +240,28 @@ export function SessionRunner({
     (summary: GameSummary) => {
       summariesRef.current.push(summary)
 
+      /**
+       * Fold this game's result into the staircase.
+       *
+       * Reconstructed from the summary rather than from each trial, because the
+       * attempts themselves went straight to the outbox and are not held in
+       * memory. accuracy_raw and hint_rate are exactly the two inputs the rule
+       * needs, so nothing is lost.
+       */
+      const state = levels[summary.game_type]
+      const sessionId = store.sessionId
+      if (state && sessionId && summary.trials_completed > 0) {
+        const accuracy = summary.accuracy_raw ?? 0
+        const hintRate = summary.hint_rate ?? 0
+        const trials = Array.from({ length: summary.trials_completed }, (_, i) => ({
+          correct: i < Math.round(accuracy * summary.trials_completed),
+          hinted: i < Math.round(hintRate * summary.trials_completed),
+        }))
+        const decision = applyTrials(state, trials, patient.severity, sessionId)
+        setLevels((current) => ({ ...current, [summary.game_type]: decision.next }))
+        void saveDifficulty(decision.next)
+      }
+
       const next: Record<SessionPhase, SessionPhase> = {
         idle: 'orientation',
         orientation: 'music',
@@ -248,7 +280,7 @@ export function SessionRunner({
       if (target === 'gameB') setGameIndex(1)
       setPhase(target)
     },
-    [store.phase, games, finish, setPhase, setGameIndex],
+    [store.phase, store.sessionId, games, levels, patient.severity, finish, setPhase, setGameIndex],
   )
 
   const activeGame = store.phase === 'gameA' ? games[0] : store.phase === 'gameB' ? games[1] : null
@@ -276,9 +308,7 @@ export function SessionRunner({
           patient={patient}
           family={family}
           clock={clock}
-          // Phase 10 reads this from difficulty_state. Until the staircase
-          // exists, every game starts at its own level 1.
-          level={1}
+          level={levels[activeGame.id]?.level ?? 1}
           speak={speak}
           onComplete={advance}
           sessionId={store.sessionId}

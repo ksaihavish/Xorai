@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { CaregiverAppShell, CaregiverSection } from '@/caregiver/AppShell'
 import { useCaregiverId } from '@/caregiver/auth/AuthProvider'
 import { signOut } from '@/caregiver/auth/api'
+import { Dashboard } from '@/caregiver/dashboard/Dashboard'
 import { SyncStatus } from '@/caregiver/dashboard/SyncStatus'
 import { loadDraftPatient } from '@/caregiver/onboarding/api'
 import type { PatientRow } from '@/caregiver/onboarding/schema'
@@ -42,6 +43,10 @@ export function CaregiverHome() {
     }
   }, [caregiverId])
 
+  // Once someone is set up, the dashboard IS the caregiver home. The thin
+  // landing screen below only exists for the states before that.
+  if (patient && !loading) return <Dashboard patient={patient} />
+
   return (
     <CaregiverAppShell
       title={patient?.display_name ?? t('caregiver.home.title')}
@@ -69,6 +74,12 @@ export function CaregiverHome() {
             >
               {t('caregiver.home.openPatientMode')}
             </a>
+            <Link
+              to="/settings/reminders"
+              className="rounded-[6px] border border-rule bg-paperSunk px-4 py-2 text-[14px] font-medium text-ink"
+            >
+              {t('settings.reminders.heading')}
+            </Link>
             <Link
               to="/settings"
               className="rounded-[6px] border border-rule bg-paperSunk px-4 py-2 text-[14px] font-medium text-ink"

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 // Side-effect import: initialises i18next before any component calls t().
 // It lives here rather than in main.tsx because main.tsx was outside this
@@ -14,6 +14,11 @@ import { SignIn } from '@/caregiver/auth/SignIn'
 import { SignUp } from '@/caregiver/auth/SignUp'
 import { OnboardingFlow } from '@/caregiver/onboarding/OnboardingFlow'
 import { ConsentSettings } from '@/caregiver/settings/ConsentSettings'
+import { RemindersSettings } from '@/caregiver/settings/reminders/RemindersSettings'
+import { AssistHome } from '@/patient/assist/AssistHome'
+import { DEMO_REMINDERS, DEMO_TRACKS } from '@/patient/assist/demoAssist'
+import { DEMO_FAMILY } from '@/patient/games/aponjon/demoFamily'
+import { createSpeakStub } from '@/patient/session/GameHost'
 import { SessionRunner } from '@/patient/session/SessionRunner'
 import { PatientShell } from '@/patient/shell/PatientShell'
 import { PatientButton } from '@/ui/PatientButton'
@@ -55,8 +60,35 @@ const PLACEHOLDER_PATIENT: LocalPatient = {
   baseline_status: 'collecting',
 }
 
+/**
+ * Patient mode: the assistance layer IS the home, and a session is one thing it
+ * offers.
+ *
+ * That ordering is the point. prd.md 5.1 lists the assistance layer as half of
+ * what the problem statement asks for, and it is the half used every day — the
+ * reminders, the contact cards, the music during agitation. Putting the session
+ * behind a "Play" button rather than making it the landing screen matches how
+ * the tablet is actually used.
+ */
 function PatientRoute() {
-  return <SessionRunner patient={PLACEHOLDER_PATIENT} onExit={() => window.location.assign('/')} />
+  const [inSession, setInSession] = useState(false)
+  const speak = useMemo(() => createSpeakStub(PLACEHOLDER_PATIENT.language), [])
+
+  if (inSession) {
+    return <SessionRunner patient={PLACEHOLDER_PATIENT} onExit={() => setInSession(false)} />
+  }
+
+  return (
+    <AssistHome
+      patient={PLACEHOLDER_PATIENT}
+      family={DEMO_FAMILY}
+      tracks={DEMO_TRACKS}
+      reminders={DEMO_REMINDERS}
+      speak={speak}
+      onStartSession={() => setInSession(true)}
+      onExit={() => window.location.assign('/')}
+    />
+  )
 }
 
 /**
@@ -197,6 +229,14 @@ const router = createBrowserRouter([
     element: (
       <RequireAuth>
         <ConsentSettings />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/settings/reminders',
+    element: (
+      <RequireAuth>
+        <RemindersSettings />
       </RequireAuth>
     ),
   },

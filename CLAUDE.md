@@ -48,18 +48,18 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 | `CLAUDE.md` | This file — the master index |
 | `memory.md` | Phase-by-phase progress tracker, updated at the end of every phase |
 | `docs/` | `prd.md`, `architecture.md`, `design.md`, `rules.md`, `phases.md`, `buildbook.md`, `audit.md`. Source of truth; excluded from the banned-string grep |
-| `i18n/` | `en.json` — every user-facing string in both modes. Phase 5 adds the other seven languages. **In** the banned-string grep |
+| `i18n/` | `en.json` (328 FLAT dot-keys, source of truth) + seven stub `{lang}.json`. **In** the banned-string grep |
 | `public/audio/` | Pre-generated speech, one folder per language, precached |
 | `public/audio/drums/` | **Synthesized placeholders** + `SOURCE.md`. Owner 3 replaces them |
 | `public/assets/cultural/` | The Xorai Milan deck — square WebP, ≤120 KB each |
-| `public/fonts/` | Self-hosted woff2 subsets + `fonts.css`. Noto Sans (latin, latin-ext, devanagari), Noto Sans Bengali (bengali), Inter (latin, latin-ext). Weights 400/600 only, **no italic face**. Meetei Mayek lands in Phase 9 |
-| `supabase/migrations/` | `0001_init.sql` (every table, indexes, `client_event_id` UNIQUE), `0002_rls.sql` (RLS on every table, storage buckets, the write bans), `0004_attempt_features.sql` (`attempts.features` jsonb for derived latency measures). Forward-only; never edited after being applied |
-| `supabase/functions/` | Edge Functions — `nightly-rollup`, `export-pdf`. Service role; the client never writes derived tables |
-| `scripts/` | `generate-audio.ts`, `build-asset-pack.ts`, `seed-telemetry.ts` |
+| `public/fonts/` | Self-hosted woff2 subsets + `fonts.css`. Noto Sans (latin, latin-ext, devanagari), Noto Sans Bengali (bengali), Noto Sans Meetei Mayek (meetei-mayek), Inter (latin, latin-ext). Weights 400/600 only, **no italic face** |
+| `supabase/migrations/` | `0001_init.sql` (every table, indexes, `client_event_id` UNIQUE), `0002_rls.sql` (RLS on every table, storage buckets, the write bans), `0004_attempt_features.sql` (`attempts.features` jsonb), `0005_views.sql` (`security_invoker` views), `0006_perf_indexes.sql` (analytical indexes). Forward-only; never edited after being applied |
+| `supabase/functions/` | `nightly-rollup` (summaries, baselines, flags, suppression) and `export-pdf` (hand-built A4, no PDF dependency). Service role; the client never writes derived tables |
+| `scripts/` | `build-asset-pack.ts`, `seed-telemetry.ts` (3 patients x 60 days, deterministic), `generate-audio.ts` (offline TTS generation) |
 | `src/main.tsx` | Mount point. Guards on `#root` rather than asserting |
 | `src/sw.ts` | Service worker. Precache + runtime caches, and the NetworkOnly rules for Supabase |
 | `public/icons/` | **Placeholder** PWA icons, generated not designed. Replace before submission |
-| `src/app/router.tsx` | `/p` → patient mode, `/` → caregiver mode (both stubs), `/demo` → the design-system harness showing one patient and one caregiver screen |
+| `src/app/router.tsx` | `/p` → patient mode (`AssistHome` + `SessionRunner`), `/` → caregiver mode (`Dashboard.tsx`), `/demo` → design-system harness |
 | `src/app/providers.tsx` | `QueryClientProvider` only, for now |
 | `src/patient/` | **Patient mode.** `design.md` is law here. May not import from `src/caregiver/**`, or from `lucide-react` |
 | `src/patient/shell/` | `PatientShell` (viewport, landscape gate, kiosk locks), `WovenSessionBorder` (the frame **is** the progress indicator), `weave.ts` (gamosa CSS), `ExitGuard` (3 s hold, no PIN), `useKioskLocks` |
@@ -70,22 +70,22 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 | `src/patient/games/ghorir-chobi/` | `GhorirChobiGame`, `shapes.tsx` (clock + japi / root-bridge / Naga border) |
 | `src/core/trace/` | `capture.ts` (the pointer ladder + latency features), `replay.tsx` (**shared with the Phase 13 dashboard**) |
 | `src/patient/orientation/` | `OrientationGame` (four questions, errorless), `questions.ts` (pure builder), `SeasonMark` (four line drawings) |
-| `src/patient/assist/` | Reminders, contact cards, SOS, music, the always-available orientation card |
+| `src/patient/assist/` | `AssistHome` (the patient home), `reminders.ts` (scheduling + catch-up), `ReminderTakeover`, `ContactsAndSos`, `OrientationCard`, `MusicPlayer` |
 | `src/caregiver/` | **Caregiver mode.** Different design system. May not import from `src/patient/**` |
 | `src/caregiver/AppShell.tsx` | `CaregiverAppShell`, `CaregiverSection` (hairline bands, not cards), `CaregiverFlagCard` (the only carded element in the mode) |
 | `src/caregiver/onboarding/` | `OnboardingFlow` (6 steps, resumable), `steps/Step1..Step6`, `api.ts` (all caregiver reads/writes + storage), `schema.ts` (zod), `VoiceNoteRecorder` |
 | `src/caregiver/auth/` | `AuthProvider`, `RequireAuth`, `SignIn`, `SignUp`, `ResetPassword`, `api.ts`, and `Form.tsx` — caregiver form primitives that belong in `src/ui/` |
-| `src/caregiver/dashboard/` | `CaregiverHome.tsx` (the `/` landing screen) and `SyncStatus.tsx`. Trends, calendar, flag cards, clock replay and PDF export land in Phase 13 |
-| `src/caregiver/settings/` | `ConsentSettings` — the DPDP withdraw-and-delete flow |
+| `src/caregiver/dashboard/` | `Dashboard` (hairline sections), `TrendChart` (baseline band), `ComplianceCalendar`, `ClockCompare` (the centrepiece), `queries.ts`, `CaregiverHome`, `SyncStatus` |
+| `src/caregiver/settings/` | `ConsentSettings` (DPDP withdraw-and-delete), `reminders/RemindersSettings` (CRUD + per-reminder voice note) |
 | `src/core/db/` | `dexie.ts` (v1 schema, 10 stores), `schemas.ts` (zod, parsed on every read out), `outbox.ts` (the four `queue*` writers), `sync-engine.ts` |
 | `src/core/supabase/` | `client.ts` — **the only client in the app**. `types.ts` is generated and still missing; see below |
 | `src/core/telemetry/` | `types.ts` (the contract), `clock.ts` (**the one `Date.now()`**), `emit.ts` |
-| `src/core/audio/` | `context.ts` (**the one AudioContext**, decoded sample cache), `scheduler.ts` (lookahead). `speak.ts` arrives in Phase 5 |
-| `src/core/i18n/` | `index.ts` (i18next init), `languages.ts` (the eight codes + endonyms) |
-| `src/core/difficulty/` | `spaced-retrieval.ts`. `staircase.ts` arrives in Phase 10 |
+| `src/core/audio/` | `context.ts` (**the one AudioContext**), `scheduler.ts` (lookahead), `speak.ts` (plays precached files, **zero network**) |
+| `src/core/i18n/` | `index.ts` (i18next, FLAT keys), `languages.ts`, `kinship.ts` (**shared by both modes — that is why it is in core**) |
+| `src/core/difficulty/` | `staircase.ts` (the 85% weighted staircase), `spaced-retrieval.ts` |
 | `src/ui/` | `cn.ts`, `PatientButton`, `PatientCard`, `Prompt`, `ReplayAudioButton`. Patient primitives written to design.md 5, **not** shadcn defaults. shadcn copies land here too when a phase needs one |
 | `src/styles/tokens.css` | The three `@tailwind` directives, then every token from design.md 2 plus the `[data-mode="caregiver"]` overrides |
-| `tests/` | `rls.test.ts`, `sync.test.ts`, `clock.test.ts`, `rhythm.test.ts`, `aponjon.test.ts`, `milan.test.ts` — none of these may be deleted or skipped |
+| `tests/` | `rls.test.ts`, `sync.test.ts`, `clock.test.ts`, `rhythm.test.ts`, `aponjon.test.ts`, `milan.test.ts`, `difficulty.test.ts`, `analysis.test.ts`, `invariants.test.ts`, `i18n.test.ts` — 146 unit tests passing; none may be deleted or skipped |
 
 ---
 
@@ -114,6 +114,24 @@ Source of truth, in order: `docs/rules.md` (wins over any prompt) → `docs/arch
 **Rhythm timing lives entirely on the audio clock.** Beats are scheduled on `audioCtx.currentTime`, taps are read from `audioCtx.currentTime` in `pointerdown`, and neither ever touches `performance.now()`. Scheduling precision was measured through an `OfflineAudioContext` render: five notes at 600/300/300/600 ms came back at exactly 600/300/300/600, max onset error **0.271 ms** and constant, so it cancels in the differences.
 
 **A suspended AudioContext is the trap.** Its `currentTime` does not advance, so (a) `await ctx.resume()` can stay pending forever, (b) playback never reports finishing, and (c) every tap reads the same frozen value and produces tidy, entirely fictional asynchronies. All three are guarded: `resumeWithTimeout`, a playback watchdog, and a `clockRunning` check that writes EMPTY timing arrays and `completed: false` rather than fabrications.
+
+**The banned-string list has exactly ONE exemption: `legal.disclaimer`.** prd.md §2 mandates that sentence word for word and it contains "diagnose" and "stage" — because it *denies* them. A word-boundary grep cannot tell a denial from a claim. `tests/banned-strings.test.ts` enforces the exemption, asserts there is only one, and asserts the sentence is still a denial. Adding a second exemption is a decision to argue for, not a convenience.
+
+**`supabase/functions/nightly-rollup/analysis.ts` holds ALL the arithmetic and is the only copy.** `index.ts` imports it. Keeping a second copy there is how the tested version and the shipped version drift apart. `tests/analysis.test.ts` drives it over the seeded profiles.
+
+**When you smooth one side of a z-score, smooth the other.** The baseline window is EWMA-smoothed with the same alpha as the current value, and `evaluateDomain` takes the FULL series and slices the sustain window off the smoothed output. Both of these were bugs that made the detector silently never fire.
+
+**The analysis corrections that matter** (all from `architecture.md` §8, all places the obvious implementation is wrong):
+- `cv_rt` is computed **per `game_type`, then weighted-mean aggregated**. Pooling raw RTs across games measures which games were played that day, not the person — and it is the metric the pitch rests on.
+- `accuracy_hint_adjusted` counts a **hinted trial as incorrect**. That is what turns "accuracy is inflated by design" into a number.
+- The baseline window is **sessions 4–13, not 1–10**. The first three are the patient learning the interface; including them bakes the practice effect into the reference.
+- EWMA (α=0.3) runs on the **raw daily** score and z comes from the EWMA value. There is deliberately **no 7-day rolling mean underneath** — α=0.3 is already a ~6-day window and double-smoothing makes the 14-day sustain rule meaningless.
+
+**The staircase's hint condition carries an accuracy guard: `accuracy <= 0.60 || (hint_rate >= 0.40 && accuracy < 0.85)`.** Dropping the second clause makes the level oscillate forever — hints fire automatically on hesitation, so a slow-but-perfect patient is demoted at 100% accuracy, the easier level shortens their latency, the hints stop, and they are promoted again. `tests/difficulty.test.ts` pins it. **Never move more than one level per session**, which `last_session_id` enforces.
+
+**`/p` is the assistance layer, not a session.** The session sits behind a "Play" button. The assistance half is what gets used every day; the games are fifteen minutes of it.
+
+**Reminders cannot fire on a locked screen** and the product says so rather than pretending (buildbook amendment 8). The design is: in-app full-screen takeover while open, a Notification when merely backgrounded, and CATCH-UP on open capped at the 2 most recent within 12 hours. No snooze — a snooze button is a decision, and decisions are expensive here.
 
 **Stroke capture uses ONE branch, never both.** `pointerrawupdate` alone where it exists; otherwise `pointermove` WITH `getCoalescedEvents()`. Calling `getCoalescedEvents()` on a `pointerrawupdate` returns only that event, so the combination captures FEWER points than the plain fallback — and it fails silently, because the trace still looks like a clock. `capture.ts` picks at subscribe time and records which branch it took in `features.raw_capture`.
 

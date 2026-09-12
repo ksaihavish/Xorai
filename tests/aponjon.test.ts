@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { INTERVALS, advance, initialState, nextDueAt, selectDueFace } from '@/core/difficulty/spaced-retrieval'
 import { classifyError } from '@/patient/games/aponjon/AponjonGame'
-import { isSemanticallyNear, kinshipEntry } from '@/patient/games/aponjon/kinship'
+import { isSemanticallyNear, kinshipEntry } from '@/core/i18n/kinship'
 import type { LocalFamilyMember } from '@/core/telemetry/types'
 
 const P = 'patient-1'
